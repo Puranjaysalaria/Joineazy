@@ -64,6 +64,14 @@ function App() {
     });
   };
 
+  const removeAssignment = (assignmentId) => {
+    setDb(prev => ({
+      ...prev,
+      assignments: prev.assignments.filter(a => String(a.id) !== String(assignmentId)),
+      submissions: prev.submissions.filter(s => String(s.assignmentId) !== String(assignmentId))
+    }));
+  };
+
   return (
     <div className="relative min-h-screen font-sans text-textMain bg-bgBase overflow-hidden">
       {/* Background Orbs */}
@@ -96,7 +104,7 @@ function App() {
           </header>
 
           {currentUser.role === 'admin' ? (
-            <AdminDashboard db={db} currentUser={currentUser} addAssignment={addAssignment} />
+            <AdminDashboard db={db} currentUser={currentUser} addAssignment={addAssignment} removeAssignment={removeAssignment} />
           ) : (
             <StudentDashboard db={db} currentUser={currentUser} addSubmission={addSubmission} />
           )}

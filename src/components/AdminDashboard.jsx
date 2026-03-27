@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Calendar, Link, X, CheckCircle } from 'lucide-react';
+import { Plus, Calendar, Link, X, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
 
-export default function AdminDashboard({ db, currentUser, addAssignment }) {
+export default function AdminDashboard({ db, currentUser, addAssignment, removeAssignment }) {
   const [activeTab, setActiveTab] = useState('assignments');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
   // Filter assignments directly created by this admin
@@ -24,6 +26,21 @@ export default function AdminDashboard({ db, currentUser, addAssignment }) {
     // Show success popup notification
     setToastMessage('Assignment created successfully!');
     setTimeout(() => setToastMessage(''), 3500);
+  };
+
+  const handleDeleteClick = (id, title) => {
+    setAssignmentToDelete({ id, title });
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (assignmentToDelete) {
+      removeAssignment(assignmentToDelete.id);
+      setIsDeleteModalOpen(false);
+      setAssignmentToDelete(null);
+      setToastMessage('Assignment deleted successfully.');
+      setTimeout(() => setToastMessage(''), 3000);
+    }
   };
 
   return (
@@ -74,6 +91,13 @@ export default function AdminDashboard({ db, currentUser, addAssignment }) {
                           <Link className="w-3.5 h-3.5" /> Drive Attached
                         </span>
                       )}
+                      <button 
+                        onClick={() => handleDeleteClick(assignment.id, assignment.title)}
+                        className="ml-auto p-2 text-textMuted hover:text-danger hover:bg-danger/10 rounded-lg transition-all"
+                        title="Delete Assignment"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                   <div className="text-left md:text-right md:min-w-[150px]">
@@ -210,6 +234,39 @@ export default function AdminDashboard({ db, currentUser, addAssignment }) {
                 <button type="submit" className="btn btn-primary px-8 hover-glow shadow-primaryGlow">Create</button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal - Rendered via Portal */}
+      {isDeleteModalOpen && createPortal(
+        <div className="fixed top-0 left-0 w-screen h-screen bg-black/80 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
+          <div className="glass-panel w-full max-w-sm rounded-2xl p-6 relative animate-modalIn border-danger/20 shadow-2xl">
+            <div className="flex flex-col items-center text-center">
+              <div className="p-4 bg-danger/20 rounded-full text-danger mb-4 border border-danger/30 animate-pulse">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Delete Assignment?</h3>
+              <p className="text-textMuted text-sm mb-6">
+                Are you sure you want to delete <span className="text-white font-semibold">"{assignmentToDelete?.title}"</span>? 
+                This action is permanent and will remove all student submissions.
+              </p>
+              <div className="flex w-full gap-3">
+                <button 
+                  className="btn flex-1 hover:bg-white/10" 
+                  onClick={() => setIsDeleteModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn bg-danger hover:bg-danger/80 text-white flex-1 border-none shadow-lg shadow-danger/20" 
+                  onClick={confirmDelete}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
           </div>
         </div>,
         document.body
