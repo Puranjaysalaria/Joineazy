@@ -71,10 +71,11 @@
 .bg-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: blur(120px);
   z-index: 0;
-  opacity: 0.6;
+  opacity: 0.65;
   animation: float 25s ease-in-out infinite;
+  pointer-events: none;
 }
 
 @keyframes float {
@@ -84,18 +85,18 @@
 }
 
 .orb-1 {
-  top: -100px;
-  left: -100px;
-  width: 600px;
-  height: 600px;
-  background: rgba(139, 92, 246, 0.4); /* primary-glow */
+  top: -150px;
+  left: -150px;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0) 70%);
   animation-delay: 0s;
 }
 .orb-2 {
-  bottom: -100px;
-  right: -100px;
-  width: 500px;
-  height: 500px;
-  background: rgba(16, 185, 129, 0.25); /* success-glow */
+  bottom: -150px;
+  right: -150px;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(16, 185, 129, 0) 70%);
   animation-delay: -7s;
 }
