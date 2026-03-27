@@ -9,6 +9,8 @@ A premium, recruiter-impressive Assignment & Review Dashboard built with **React
 - **Admin Insights Dashboard**: Real-time statistics header (Total Students, Active Assignments).
 - **Student Personal Hub**: Tailored welcome card with a dynamic course progress ring.
 - **Double-Verification Flow**: Secure student submission process with confirmation modals.
+- **Resubmission & Editing**: Students can update their work as long as the deadline hasn't passed.
+- **Strict Deadline Enforcement**: Automated 'Locking' of submissions and disabling of 'Submit' buttons once the due date is exceeded.
 - **Premium Confirmation Modals**: Portalled, glassmorphism overlays with warning icons.
 
 ## 🏗️ Architecture & Design Decisions

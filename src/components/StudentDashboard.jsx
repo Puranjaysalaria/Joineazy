@@ -44,24 +44,24 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
 
   return (
     <main className="animate-fadeIn">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4 animate-slideDown">
-        <div>
-          <h1 className="text-3xl font-bold mb-2 text-white">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
-          <p className="text-textMuted text-sm md:text-base">You have <span className="text-primary font-bold">{totalCount - completedCount} tasks</span> remaining for this week.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-6 animate-slideDown">
+        <div className="w-full sm:w-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-white">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+          <p className="text-textMuted text-xs sm:text-sm md:text-base">You have <span className="text-primary font-bold">{totalCount - completedCount} tasks</span> remaining.</p>
         </div>
-        <div className="glass-panel p-4 rounded-xl shadow-lg border-white/10 flex items-center gap-4 min-w-[200px]">
-          <div className="w-12 h-12 rounded-full border-4 border-surface/50 relative flex items-center justify-center">
+        <div className="glass-panel p-3 sm:p-4 rounded-xl shadow-lg border-white/10 flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-4 border-surface/50 relative flex items-center justify-center">
              <div className="absolute inset-0 border-4 border-primary rounded-full" style={{ clipPath: `inset(0 ${100 - (completedCount / (totalCount || 1)) * 100}% 0 0)` }}></div>
-             <span className="text-xs font-bold">{Math.round((completedCount / (totalCount || 1)) * 100)}%</span>
+             <span className="text-[10px] sm:text-xs font-bold">{Math.round((completedCount / (totalCount || 1)) * 100)}%</span>
           </div>
           <div>
-            <div className="text-sm font-bold text-white">Course Progress</div>
-            <div className="text-xs text-textMuted">{completedCount} of {totalCount} Completed</div>
+            <div className="text-xs sm:text-sm font-bold text-white leading-tight">Course Progress</div>
+            <div className="text-[10px] sm:text-xs text-textMuted">{completedCount} of {totalCount} Completed</div>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
         {assignmentsWithStatus.map((assignment, idx) => (
           <div key={assignment.id} 
                className="glass-panel p-6 rounded-xl animate-slideUp flex flex-col border-white/5 hover:border-white/20 transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-cardHover relative overflow-hidden"
@@ -72,10 +72,16 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
               style={{ background: `radial-gradient(circle, ${assignment.isSubmitted ? '#10b981' : '#8b5cf6'} 0%, transparent 70%)` }}
             ></div>
             <div className="flex justify-between items-start mb-4 relative z-10">
-              <span className={`status-badge flex items-center gap-1 ${assignment.isSubmitted ? 'status-submitted' : 'status-pending'}`}>
-                {assignment.isSubmitted ? <><CheckCircle className="w-3.5 h-3.5" /> Submitted</> : 'Pending'}
+              <span className={`status-badge flex items-center gap-1 ${
+                assignment.isSubmitted 
+                  ? 'status-submitted' 
+                  : (assignment.isOverdue ? 'bg-danger/10 text-danger border-danger/20' : 'status-pending')
+              }`}>
+                {assignment.isSubmitted 
+                  ? <><CheckCircle className="w-3.5 h-3.5" /> Submitted</> 
+                  : (assignment.isOverdue ? 'Deadline Passed' : 'Pending')}
               </span>
-              <span className="text-xs text-textMuted flex items-center gap-1 font-medium bg-black/20 px-2 py-1 rounded-md">
+              <span className={`text-xs flex items-center gap-1 font-medium bg-black/20 px-2 py-1 rounded-md ${assignment.isOverdue && !assignment.isSubmitted ? 'text-danger' : 'text-textMuted'}`}>
                 <Clock className="w-3.5 h-3.5" /> {new Date(assignment.dueDate).toLocaleDateString()}
               </span>
             </div>
@@ -89,15 +95,27 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
               </a>
             )}
             
-            <div className="mt-auto pt-4 border-t border-white/10">
+            <div className="mt-auto pt-4 border-t border-white/10 relative z-10">
               {assignment.isSubmitted ? (
-                <button className="btn w-full btn-success flex justify-center items-center gap-2 cursor-default opacity-90" disabled>
-                  <CheckCircle className="w-4 h-4" /> Completed
-                </button>
+                assignment.isOverdue ? (
+                  <button className="btn w-full btn-success flex justify-center items-center gap-2 cursor-not-allowed opacity-70" disabled title="Deadline passed, cannot edit">
+                    <CheckCircle className="w-4 h-4" /> Submitted (Locked)
+                  </button>
+                ) : (
+                  <button className="btn w-full bg-primary/20 text-primary border-primary/30 hover:bg-primary/30 flex justify-center items-center gap-2" onClick={() => handleInitiate(assignment)}>
+                    <UploadCloud className="w-4 h-4" /> Edit Submission
+                  </button>
+                )
               ) : (
-                <button className="btn btn-primary w-full flex justify-center items-center gap-2" onClick={() => handleInitiate(assignment)}>
-                  <UploadCloud className="w-5 h-5" /> Submit Work
-                </button>
+                assignment.isOverdue ? (
+                  <button className="btn w-full bg-danger/10 text-danger border-danger/20 flex justify-center items-center gap-2 cursor-not-allowed opacity-80" disabled>
+                    <Clock className="w-4 h-4" /> Deadline Passed
+                  </button>
+                ) : (
+                  <button className="btn btn-primary w-full flex justify-center items-center gap-2" onClick={() => handleInitiate(assignment)}>
+                    <UploadCloud className="w-5 h-5" /> Submit Work
+                  </button>
+                )
               )}
             </div>
           </div>

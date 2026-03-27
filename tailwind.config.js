@@ -8,10 +8,10 @@ export default {
     extend: {
       colors: {
         bgBase: "#0a0a0c",
-        surface: "rgba(255, 255, 255, 0.03)",
-        surfaceHover: "rgba(255, 255, 255, 0.06)",
-        surfaceActive: "rgba(255, 255, 255, 0.1)",
-        borderColor: "rgba(255, 255, 255, 0.08)",
+        surface: "rgba(255, 255, 255, 0.07)",
+        surfaceHover: "rgba(255, 255, 255, 0.1)",
+        surfaceActive: "rgba(255, 255, 255, 0.15)",
+        borderColor: "rgba(255, 255, 255, 0.12)",
         borderHighlight: "rgba(255, 255, 255, 0.15)",
         primary: "#8b5cf6",
         primaryHover: "#7c3aed",

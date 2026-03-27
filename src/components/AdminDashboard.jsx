@@ -45,12 +45,12 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
 
   return (
     <main className="animate-fadeIn">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 px-1 sm:px-0">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-          <p className="text-textMuted text-sm md:text-base">Manage assignments and track student progress.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2 text-white">Admin Dashboard</h1>
+          <p className="text-textMuted text-xs sm:text-sm md:text-base">Manage assignments and track student progress.</p>
         </div>
-        <button className="btn btn-primary flex items-center gap-2" onClick={() => setIsModalOpen(true)}>
+        <button className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center" onClick={() => setIsModalOpen(true)}>
           <Plus className="w-5 h-5" /> New Assignment
         </button>
       </div>
@@ -89,15 +89,15 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
       </div>
 
       {/* Tabs */}
-      <div className="glass-panel flex gap-2 p-1 mb-8 rounded-lg w-max shadow-sm">
+      <div className="glass-panel flex gap-1 sm:gap-2 p-1 mb-6 sm:mb-8 rounded-lg w-full sm:w-max shadow-sm overflow-x-auto no-scrollbar">
         <button 
-          className={`px-4 py-2 rounded-md transition-colors text-sm font-medium ${activeTab === 'assignments' ? 'bg-surfaceActive text-white' : 'text-textMuted hover:text-white'}`}
+          className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md transition-colors text-xs sm:text-sm font-medium whitespace-nowrap ${activeTab === 'assignments' ? 'bg-surfaceActive text-white' : 'text-textMuted hover:text-white'}`}
           onClick={() => setActiveTab('assignments')}
         >
           Assignments
         </button>
         <button 
-          className={`px-4 py-2 rounded-md transition-colors text-sm font-medium ${activeTab === 'students' ? 'bg-surfaceActive text-white' : 'text-textMuted hover:text-white'}`}
+          className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md transition-colors text-xs sm:text-sm font-medium whitespace-nowrap ${activeTab === 'students' ? 'bg-surfaceActive text-white' : 'text-textMuted hover:text-white'}`}
           onClick={() => setActiveTab('students')}
         >
           Student Progress
@@ -117,10 +117,15 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
                   <div>
                     <h3 className="text-xl font-bold mb-1 text-white">{assignment.title}</h3>
                     <p className="text-sm text-textMuted mb-3">{assignment.description}</p>
-                    <div className="flex items-center gap-2 text-xs text-textMuted">
+                    <div className="flex items-center gap-2 text-xs text-textMuted flex-wrap">
                       <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
+                      {new Date(assignment.dueDate).toISOString().split('T')[0] < new Date().toISOString().split('T')[0] && (
+                        <span className="px-2 py-0.5 bg-danger/10 text-danger rounded flex items-center gap-1 border border-danger/20 font-bold uppercase tracking-tighter text-[10px]">
+                          <Clock className="w-3 h-3" /> Deadline Passed
+                        </span>
+                      )}
                       {assignment.driveLink && (
-                        <span className="px-2 py-0.5 bg-surface rounded ml-2 flex items-center gap-1 border border-white/10">
+                        <span className="px-2 py-0.5 bg-surface rounded flex items-center gap-1 border border-white/10">
                           <Link className="w-3.5 h-3.5" /> Drive Attached
                         </span>
                       )}

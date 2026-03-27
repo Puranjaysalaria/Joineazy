@@ -10,10 +10,17 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-surface backdrop-blur-md border border-borderColor;
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%);
+    backdrop-filter: blur(32px) saturate(210%);
+    -webkit-backdrop-filter: blur(32px) saturate(210%);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 
+      0 30px 60px -12px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
+    @apply transition-all duration-300;
   }
   .glass-panel-light {
-    @apply bg-white/5 backdrop-blur-md border border-borderColor;
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
   }
   /* Buttons */
   .btn {
@@ -31,17 +38,17 @@
   
   /* Custom Box Shadows */
   .shadow-glow {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4); /* Used specifically for floating modals */
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4); 
   }
   .shadow-successGlow {
     box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
   }
   .shadow-cardHover {
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5); /* Deep shadow, no colored bleed */
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
   }
   /* Inputs */
   .input-field {
-    @apply w-full bg-black/20 border border-borderColor text-textMain px-4 py-3 rounded-lg outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/40 font-sans;
+    @apply w-full bg-black/40 border border-white/10 text-white px-4 py-3 rounded-lg outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/40 font-sans;
   }
   
   /* Make native calendar icon visible on dark theme */
@@ -71,32 +78,32 @@
 .bg-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(120px);
-  z-index: 0;
-  opacity: 0.65;
+  filter: blur(140px);
+  z-index: -1;
+  opacity: 1;
   animation: float 25s ease-in-out infinite;
   pointer-events: none;
 }
 
 @keyframes float {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
+  33% { transform: translate(60px, -80px) scale(1.2); }
+  66% { transform: translate(-40px, 40px) scale(0.8); }
 }
 
 .orb-1 {
-  top: -150px;
-  left: -150px;
-  width: 800px;
-  height: 800px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0) 70%);
+  top: -200px;
+  left: -200px;
+  width: 900px;
+  height: 900px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.45) 0%, rgba(139, 92, 246, 0) 70%);
   animation-delay: 0s;
 }
 .orb-2 {
-  bottom: -150px;
-  right: -150px;
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(16, 185, 129, 0) 70%);
+  bottom: -200px;
+  right: -200px;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.35) 0%, rgba(16, 185, 129, 0) 70%);
   animation-delay: -7s;
 }
