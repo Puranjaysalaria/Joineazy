@@ -57,10 +57,17 @@ function App() {
   };
 
   const addAssignment = (newAssignment) => {
-    setDb(prev => ({
-      ...prev,
-      assignments: [...prev.assignments, { ...newAssignment, id: Date.now(), createdBy: currentUser.id, createdAt: new Date().toISOString() }]
-    }));
+    updateDb({
+      assignments: [...db.assignments, { ...newAssignment, id: Date.now(), createdBy: currentUser.id, createdAt: new Date().toISOString() }]
+    });
+  };
+
+  const updateAssignment = (updatedAssignment) => {
+    updateDb({
+      assignments: db.assignments.map(a => 
+        String(a.id) === String(updatedAssignment.id) ? updatedAssignment : a
+      )
+    });
   };
 
   const addSubmission = (assignmentId) => {
@@ -146,7 +153,8 @@ function App() {
             <AdminDashboard 
               db={db} 
               currentUser={currentUser} 
-              addAssignment={addAssignment} 
+              addAssignment={addAssignment}
+              updateAssignment={updateAssignment}
               removeAssignment={removeAssignment}
               updateSubmission={updateSubmission}
               sendNotification={sendNotification}

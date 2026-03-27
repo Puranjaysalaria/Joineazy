@@ -80,7 +80,7 @@ export default function StudentDashboard({ db, currentUser, addSubmission, notif
 
             {/* Urgent Reminder Badge */}
             {assignment.hasReminder && !assignment.isSubmitted && (
-              <div className="absolute top-4 right-4 animate-bounce z-20">
+              <div className="absolute bottom-24 right-6 animate-bounce z-20">
                 <div className="bg-danger text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-danger/40 flex items-center gap-1 border border-white/20">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>

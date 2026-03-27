@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Calendar, Link, X, CheckCircle, Trash2, AlertTriangle, Users, CheckCircle2, Clock, Bell } from 'lucide-react';
+import { 
+  Plus, Calendar, Users, CheckCircle, Clock, AlertTriangle, 
+  Trash2, ExternalLink, ChevronRight, X, User, MessageSquare, 
+  Send, Check, Star, Award, Search, Filter, Mail, Pencil, Link, CheckCircle2, Bell
+} from 'lucide-react';
 
-export default function AdminDashboard({ db, currentUser, addAssignment, removeAssignment, updateSubmission, sendNotification }) {
+export default function AdminDashboard({ db, currentUser, addAssignment, removeAssignment, updateSubmission, sendNotification, updateAssignment }) {
   const [activeTab, setActiveTab] = useState('assignments');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState(null);
   const [gradingModal, setGradingModal] = useState({ open: false, student: null, assignment: null, submission: null });
-  const [reminderModal, setReminderModal] = useState({ student: null, assignment: null });
+  const [reminderModal, setReminderModal] = useState({ open: false, student: null, assignment: null });
+  const [editingAssignment, setEditingAssignment] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
   const [gradeData, setGradeData] = useState({ grade: 'A', feedback: '' });
   const [formData, setFormData] = useState({ title: '', description: '', dueDate: '', driveLink: '' });
@@ -37,13 +42,28 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
 
   const handleCreate = (e) => {
     e.preventDefault();
-    addAssignment(formData);
+    if (editingAssignment) {
+      updateAssignment({ ...editingAssignment, ...formData });
+      setToastMessage('Assignment updated successfully!');
+    } else {
+      addAssignment(formData);
+      setToastMessage('Assignment created successfully!');
+    }
     setFormData({ title: '', description: '', dueDate: '', driveLink: '' });
+    setEditingAssignment(null);
     setIsModalOpen(false);
-    
-    // Show success popup notification
-    setToastMessage('Assignment created successfully!');
     setTimeout(() => setToastMessage(''), 3500);
+  };
+
+  const openEditModal = (assignment) => {
+    setEditingAssignment(assignment);
+    setFormData({
+      title: assignment.title,
+      description: assignment.description,
+      dueDate: assignment.dueDate,
+      driveLink: assignment.driveLink || ''
+    });
+    setIsModalOpen(true);
   };
 
   const handleDeleteClick = (id, title) => {
@@ -68,7 +88,7 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
           <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2 text-white">Admin Dashboard</h1>
           <p className="text-textMuted text-xs sm:text-sm md:text-base">Manage assignments and track student progress.</p>
         </div>
-        <button className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center" onClick={() => setIsModalOpen(true)}>
+        <button className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center" onClick={() => { setIsModalOpen(true); setEditingAssignment(null); setFormData({ title: '', description: '', dueDate: '', driveLink: '' }); }}>
           <Plus className="w-5 h-5" /> New Assignment
         </button>
       </div>
@@ -147,13 +167,22 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
                           <Link className="w-3.5 h-3.5" /> Drive Attached
                         </span>
                       )}
-                      <button 
-                        onClick={() => handleDeleteClick(assignment.id, assignment.title)}
-                        className="ml-auto p-2 text-textMuted hover:text-danger hover:bg-danger/10 rounded-lg transition-all"
-                        title="Delete Assignment"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-3 ml-auto">
+                        <button 
+                          onClick={() => openEditModal(assignment)}
+                          className="p-2 text-textMuted hover:text-primary transition-colors hover:bg-white/5 rounded-lg"
+                          title="Edit Assignment"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteClick(assignment.id, assignment.title)}
+                          className="p-2 text-textMuted hover:text-danger transition-colors hover:bg-white/5 rounded-lg"
+                          title="Delete Assignment"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="text-left md:text-right md:min-w-[150px]">
@@ -241,7 +270,7 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
                                       <button 
                                         className="p-1.5 text-warning hover:bg-warning/10 rounded-md transition-all group/bell"
                                         title="Send Reminder"
-                                        onClick={() => setReminderModal({ student, assignment: a })}
+                                        onClick={() => setReminderModal({ open: true, student, assignment: a })}
                                       >
                                         <Bell className="w-3.5 h-3.5 group-hover/bell:animate-bounce" />
                                       </button>
@@ -272,7 +301,7 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
         </div>
       )}
 
-      {/* Add Assignment Modal - Rendered via Portal */}
+      {/* Add/Edit Assignment Modal - Rendered via Portal */}
       {isModalOpen && createPortal(
         <div className="fixed top-0 left-0 w-screen h-screen bg-black/70 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
           <div className="glass-panel w-full max-w-md rounded-2xl p-6 relative animate-modalIn shadow-4xl border-white/10">
@@ -286,7 +315,9 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
               <div className="p-3 bg-primary/20 rounded-xl text-primary border border-primary/20">
                 <Plus className="w-6 h-6" />
               </div>
-              <h2 className="text-2xl font-bold text-white">Create Assignment</h2>
+              <h2 className="text-2xl font-bold text-white">
+                {editingAssignment ? 'Edit Assignment' : 'Create Assignment'}
+              </h2>
             </div>
             
             <form onSubmit={handleCreate} className="space-y-4">
