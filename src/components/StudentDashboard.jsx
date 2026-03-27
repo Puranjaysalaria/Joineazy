@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { UploadCloud, CheckCircle, FileText, Clock, FileCheck, Layout } from 'lucide-react';
 
-export default function StudentDashboard({ db, currentUser, addSubmission }) {
+export default function StudentDashboard({ db, currentUser, addSubmission, notifications }) {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [modalState, setModalState] = useState('none'); // 'none', 'confirm'
   const [fileAttached, setFileAttached] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   const assignmentsWithStatus = db.assignments.map(a => {
-    const isSubmitted = db.submissions.some(s => s.assignmentId === a.id && s.studentId === currentUser.id);
-    return { ...a, isSubmitted };
+    const sub = db.submissions.find(s => String(s.assignmentId) === String(a.id) && String(s.studentId) === String(currentUser.id));
+    const isOverdue = new Date(a.dueDate).toISOString().split('T')[0] < new Date().toISOString().split('T')[0];
+    const hasReminder = notifications?.some(n => String(n.assignmentId) === String(a.id));
+    return { ...a, isSubmitted: !!sub, grade: sub?.grade, feedback: sub?.feedback, isOverdue, hasReminder };
   });
 
   const completedCount = assignmentsWithStatus.filter(a => a.isSubmitted).length;
@@ -70,11 +72,24 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
           <div key={assignment.id} 
                className="glass-panel p-6 rounded-xl animate-slideUp flex flex-col border-white/5 hover:border-white/20 transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-cardHover relative overflow-hidden"
                style={{ animationDelay: `${idx * 0.1}s` }}>
-            {/* Ambient Background Glow Effect (Radial Gradient prevents Webkit blur clipping bugs) */}
+            {/* Ambient Background Glow Effect */}
             <div 
               className="absolute top-[-50px] right-[-50px] w-64 h-64 opacity-30 pointer-events-none transition-colors duration-700 z-0"
-              style={{ background: `radial-gradient(circle, ${assignment.isSubmitted ? '#10b981' : '#8b5cf6'} 0%, transparent 70%)` }}
+              style={{ background: `radial-gradient(circle, ${assignment.isSubmitted ? '#10b981' : (assignment.hasReminder ? '#ef4444' : '#8b5cf6')} 0%, transparent 70%)` }}
             ></div>
+
+            {/* Urgent Reminder Badge */}
+            {assignment.hasReminder && !assignment.isSubmitted && (
+              <div className="absolute top-4 right-4 animate-bounce z-20">
+                <div className="bg-danger text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-danger/40 flex items-center gap-1 border border-white/20">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                  </span>
+                  URGENT REMINDER
+                </div>
+              </div>
+            )}
             <div className="flex justify-between items-start mb-4 relative z-10">
               <span className={`status-badge flex items-center gap-1 ${
                 assignment.isSubmitted 
@@ -92,6 +107,23 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
             
             <h3 className="text-xl font-bold mb-2 text-white">{assignment.title}</h3>
             <p className="text-sm text-textMuted mb-4 flex-grow">{assignment.description}</p>
+            
+            {/* Instructor Feedback Section */}
+            {assignment.grade && (
+              <div className="mb-5 p-4 rounded-xl bg-success/10 border border-success/20 animate-fadeIn relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-2 opacity-20">
+                  <FileCheck className="w-8 h-8 text-success" />
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-success px-2 py-0.5 bg-success/20 rounded">Graded: {assignment.grade}</span>
+                </div>
+                {assignment.feedback && (
+                  <p className="text-xs text-white/80 leading-relaxed italic">
+                    <span className="font-bold not-italic text-success">Feedback:</span> "{assignment.feedback}"
+                  </p>
+                )}
+              </div>
+            )}
             
             {assignment.driveLink && (
               <a href={assignment.driveLink} target="_blank" rel="noreferrer" className="text-sm text-primary hover:text-primaryHover transition-colors flex items-center gap-1 mb-5 w-max font-medium bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/20">

@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Calendar, Link, X, CheckCircle, Trash2, AlertTriangle, Users, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, Calendar, Link, X, CheckCircle, Trash2, AlertTriangle, Users, CheckCircle2, Clock, Bell } from 'lucide-react';
 
-export default function AdminDashboard({ db, currentUser, addAssignment, removeAssignment }) {
+export default function AdminDashboard({ db, currentUser, addAssignment, removeAssignment, updateSubmission, sendNotification }) {
   const [activeTab, setActiveTab] = useState('assignments');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState(null);
+  const [gradingModal, setGradingModal] = useState({ open: false, student: null, assignment: null, submission: null });
+  const [reminderModal, setReminderModal] = useState({ student: null, assignment: null });
   const [toastMessage, setToastMessage] = useState('');
+  const [gradeData, setGradeData] = useState({ grade: 'A', feedback: '' });
+  const [formData, setFormData] = useState({ title: '', description: '', dueDate: '', driveLink: '' });
 
   // Filter assignments directly created by this admin
   const adminAssignments = db.assignments.filter(a => a.createdBy === currentUser.id);
@@ -15,7 +19,21 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
   const totalStudents = students.length;
   const totalAssignments = adminAssignments.length;
 
-  const [formData, setFormData] = useState({ title: '', description: '', dueDate: '', driveLink: '' });
+  const openGradingModal = (student, assignment, submission) => {
+    setGradingModal({ open: true, student, assignment, submission });
+    setGradeData({ 
+      grade: submission.grade || 'A', 
+      feedback: submission.feedback || '' 
+    });
+  };
+
+  const handleGradeSubmit = (e) => {
+    e.preventDefault();
+    updateSubmission(gradingModal.assignment.id, gradingModal.student.id, gradeData.grade, gradeData.feedback);
+    setGradingModal({ open: false, student: null, assignment: null, submission: null });
+    setToastMessage(`Graded ${gradingModal.student.name}'s work: ${gradeData.grade}`);
+    setTimeout(() => setToastMessage(''), 3000);
+  };
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -108,7 +126,7 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
       {activeTab === 'assignments' && (
         <div className="grid gap-6 grid-cols-1">
           {adminAssignments.map(assignment => {
-            const submittedCount = db.submissions.filter(s => s.assignmentId === assignment.id && s.status === 'submitted').length;
+            const submittedCount = db.submissions.filter(s => s.assignmentId === assignment.id && (s.status === 'submitted' || s.status === 'reviewed')).length;
             const progressPercent = totalStudents === 0 ? 0 : Math.round((submittedCount / totalStudents) * 100);
 
             return (
@@ -156,41 +174,93 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
       {activeTab === 'students' && (
         <div className="glass-panel rounded-xl overflow-hidden shadow-sm animate-slideUp">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[600px]">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-borderColor bg-black/20">
                   <th className="p-4 text-textMuted font-medium text-sm">Student</th>
-                  <th className="p-4 text-textMuted font-medium text-sm">Progress</th>
-                  <th className="p-4 text-textMuted font-medium text-sm">Status</th>
+                  <th className="p-4 text-textMuted font-medium text-sm">Active Submissions</th>
+                  <th className="p-4 text-textMuted font-medium text-sm text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {students.map((student, idx) => {
-                  // Admin sees progress only regarding the assignments they created
-                  const submittedCount = db.submissions.filter(s => 
+                  const studentSubmissions = db.submissions.filter(s => 
                     s.studentId === student.id && adminAssignments.some(assign => assign.id === s.assignmentId)
-                  ).length;
-                  const progressPercent = totalAssignments === 0 ? 0 : Math.round((submittedCount / totalAssignments) * 100);
+                  );
+                  const progressPercent = totalAssignments === 0 ? 0 : Math.round((studentSubmissions.length / totalAssignments) * 100);
 
                   return (
                     <tr key={student.id} className="border-b border-borderColor/50 last:border-0 hover:bg-surfaceHover transition-colors">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
+                      <td className="p-4 align-top">
+                        <div className="flex items-center gap-3 mb-3">
                           <div className="w-8 h-8 bg-primary text-white flex justify-center items-center rounded-full font-bold text-xs shadow-glow">{student.avatar}</div>
-                          <span className="font-medium text-white">{student.name}</span>
+                          <div>
+                            <span className="font-medium text-white block">{student.name}</span>
+                            <span className="text-[10px] text-textMuted uppercase tracking-tight font-bold">Student ID: #00{student.id}</span>
+                          </div>
                         </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm w-10 font-medium">{progressPercent}%</span>
-                          <div className="w-full max-w-[120px] h-2 bg-black/30 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full transition-all duration-1000 shadow-glow" style={{ width: `${progressPercent}%` }}></div>
+                        {/* Individual Student Progress Bar */}
+                        <div className="w-full max-w-[160px]">
+                          <div className="flex justify-between items-end mb-1">
+                             <span className="text-[10px] text-textMuted uppercase font-bold">Progress</span>
+                             <span className="text-[10px] text-white font-bold">{progressPercent}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-1000 shadow-glow ${progressPercent === 100 ? 'bg-success shadow-success/20' : 'bg-primary shadow-primary/20'}`} 
+                              style={{ width: `${progressPercent}%` }}
+                            ></div>
                           </div>
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 align-top">
+                        <div className="flex flex-col gap-2">
+                          {adminAssignments.map(a => {
+                            const sub = studentSubmissions.find(s => s.assignmentId === a.id);
+                            return (
+                              <div key={a.id} className="flex items-center justify-between gap-4 bg-black/20 px-3 py-2 rounded-lg border border-white/5">
+                                <span className="text-xs text-white truncate max-w-[150px]">{a.title}</span>
+                                {sub ? (
+                                  <div className="flex items-center gap-2">
+                                    {sub.grade ? (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 bg-success/20 text-success border border-success/30 rounded">Grade: {sub.grade}</span>
+                                    ) : (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 rounded">Pending Review</span>
+                                    )}
+                                    <button 
+                                      className="text-[10px] text-white bg-primary/40 hover:bg-primary px-2 py-1 rounded transition-colors uppercase font-bold"
+                                      onClick={() => openGradingModal(student, a, sub)}
+                                    >
+                                      {sub.grade ? 'Edit' : 'Review'}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] text-textMuted italic">Not submitted</span>
+                                      <button 
+                                        className="p-1.5 text-warning hover:bg-warning/10 rounded-md transition-all group/bell"
+                                        title="Send Reminder"
+                                        onClick={() => setReminderModal({ student, assignment: a })}
+                                      >
+                                        <Bell className="w-3.5 h-3.5 group-hover/bell:animate-bounce" />
+                                      </button>
+                                    </div>
+                                    {db.notifications?.some(n => n.userId === student.id && n.assignmentId === a.id) && (
+                                      <span className="text-[9px] font-bold text-warning/80 flex items-center gap-1 bg-warning/5 px-2 py-0.5 rounded border border-warning/10 animate-fadeIn">
+                                        <Clock className="w-2.5 h-2.5" /> Reminded
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-center">
                         <span className={`status-badge ${progressPercent === 100 ? 'status-submitted' : 'status-pending'}`}>
-                          {progressPercent === 100 ? 'Complete' : 'Pending'}
+                          {progressPercent === 100 ? 'All Clear' : 'Tasks Pending'}
                         </span>
                       </td>
                     </tr>
@@ -310,11 +380,108 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
         document.body
       )}
 
+      {/* Reminder Confirmation Modal */}
+      {reminderModal.student && createPortal(
+        <div className="fixed top-0 left-0 w-screen h-screen bg-black/60 backdrop-blur-sm flex justify-center items-center z-[9999] p-4">
+          <div className="glass-panel w-full max-w-sm rounded-2xl p-8 text-center animate-modalIn shadow-4xl border-white/10">
+            <div className="w-16 h-16 bg-warning/10 rounded-full flex justify-center items-center mx-auto mb-5 border border-warning/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+              <Bell className="w-8 h-8 text-warning" />
+            </div>
+            <h2 className="text-xl font-bold mb-3 text-white">Send Reminder?</h2>
+            <p className="text-textMuted mb-6 text-sm leading-relaxed">
+              Confirm sending a submission reminder to <strong className="text-white">{reminderModal.student.name}</strong> for <strong className="text-white">"{reminderModal.assignment.title}"</strong>.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button 
+                className="btn btn-primary w-full py-3 bg-warning hover:bg-warning/80 text-black font-bold shadow-lg shadow-warning/20 border-none"
+                onClick={() => {
+                  sendNotification(reminderModal.student.id, reminderModal.assignment.id, `Reminder: Submission for "${reminderModal.assignment.title}" is pending.`);
+                  setToastMessage(`Reminder sent to ${reminderModal.student.name}!`);
+                  setTimeout(() => setToastMessage(''), 3000);
+                  setReminderModal({ student: null, assignment: null });
+                }}
+              >
+                Send Now 🚀
+              </button>
+              <button 
+                className="btn w-full py-3 text-sm text-textMuted hover:text-white transition-colors"
+                onClick={() => setReminderModal({ student: null, assignment: null })}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Toast Notification */}
       {toastMessage && createPortal(
         <div className="fixed bottom-6 right-6 bg-success/20 border border-success/50 text-success px-6 py-4 rounded-xl shadow-glow animate-slideUp z-[9999] flex items-center gap-3">
           <CheckCircle className="w-6 h-6" />
           <span className="font-semibold">{toastMessage}</span>
+        </div>,
+        document.body
+      )}
+
+      {/* Grading Modal - Rendered via Portal */}
+      {gradingModal.open && createPortal(
+        <div className="fixed top-0 left-0 w-screen h-screen bg-black/80 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
+          <div className="glass-panel w-full max-w-md rounded-2xl p-6 sm:p-8 animate-modalIn shadow-4xl border-white/10">
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center text-primary">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Review Submission</h2>
+                  <p className="text-xs text-textMuted">Grading work for {gradingModal.student.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setGradingModal({ ...gradingModal, open: false })} className="text-textMuted hover:text-white transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="mb-6 p-4 bg-black/20 rounded-xl border border-white/5">
+              <span className="text-[10px] uppercase text-textMuted font-bold block mb-1">Assignment</span>
+              <span className="text-white font-semibold">{gradingModal.assignment.title}</span>
+            </div>
+
+            <form onSubmit={handleGradeSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium mb-3 text-white">Select Grade</label>
+                <div className="flex gap-2">
+                  {['A+', 'A', 'B', 'C', 'D', 'F'].map(g => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setGradeData({ ...gradeData, grade: g })}
+                      className={`flex-1 py-3 rounded-xl font-bold border transition-all ${gradeData.grade === g ? 'bg-primary border-primary text-white shadow-glow' : 'bg-surfaceActive border-white/5 text-textMuted hover:border-white/20'}`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-3 text-white">Feedback for Student</label>
+                <textarea
+                  rows="4"
+                  className="input-field resize-none bg-black/20"
+                  placeholder="Excellent work on the analysis! Keep it up."
+                  value={gradeData.feedback}
+                  onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })}
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                <button type="button" className="btn hover:bg-white/10" onClick={() => setGradingModal({ ...gradingModal, open: false })}>Cancel</button>
+                <button type="submit" className="btn btn-primary px-8 shadow-primaryGlow">Save Grade</button>
+              </div>
+            </form>
+          </div>
         </div>,
         document.body
       )}

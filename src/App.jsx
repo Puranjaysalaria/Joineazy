@@ -10,6 +10,9 @@ const INITIAL_DB = {
     { id: 1, name: 'Alex Carter', role: 'student', avatar: 'AC' },
     { id: 2, name: 'Jordan Smith', role: 'student', avatar: 'JS' },
     { id: 3, name: 'Taylor Doe', role: 'student', avatar: 'TD' },
+    { id: 4, name: 'Morgan Lee', role: 'student', avatar: 'ML' },
+    { id: 5, name: 'Casey Rivers', role: 'student', avatar: 'CR' },
+    { id: 6, name: 'Peyton West', role: 'student', avatar: 'PW' },
     { id: 100, name: 'Prof. Anderson', role: 'admin', avatar: 'PA' }
   ],
   assignments: [
@@ -18,19 +21,25 @@ const INITIAL_DB = {
   ],
   submissions: [
     { studentId: 1, assignmentId: 101, status: 'submitted', timestamp: new Date().toISOString() }
-  ]
+  ],
+  notifications: []
 };
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   
-  // Initialize mock DB from localStorage or fallback to INITIAL_DB
   const [db, setDb] = useState(() => {
     const saved = localStorage.getItem('joineazy_db');
-    return saved ? JSON.parse(saved) : INITIAL_DB;
+    if (!saved) return INITIAL_DB;
+    const parsed = JSON.parse(saved);
+    // Ensure all required top-level keys exist (migrations)
+    return {
+      ...INITIAL_DB,
+      ...parsed,
+      notifications: parsed.notifications || []
+    };
   });
 
-  // Utilize useEffect to persist data
   useEffect(() => {
     localStorage.setItem('joineazy_db', JSON.stringify(db));
   }, [db]);
@@ -63,7 +72,9 @@ function App() {
       
       return {
         ...prev,
-        submissions: [...otherSubmissions, { studentId: currentUser.id, assignmentId, status: 'submitted', timestamp: new Date().toISOString() }]
+        submissions: [...otherSubmissions, { studentId: currentUser.id, assignmentId, status: 'submitted', timestamp: new Date().toISOString() }],
+        // Clear any reminders for this assignment once submitted
+        notifications: prev.notifications.filter(n => !(String(n.assignmentId) === String(assignmentId) && String(n.userId) === String(currentUser.id)))
       };
     });
   };
@@ -72,24 +83,47 @@ function App() {
     setDb(prev => ({
       ...prev,
       assignments: prev.assignments.filter(a => String(a.id) !== String(assignmentId)),
-      submissions: prev.submissions.filter(s => String(s.assignmentId) !== String(assignmentId))
+      submissions: prev.submissions.filter(s => String(s.assignmentId) !== String(assignmentId)),
+      notifications: prev.notifications.filter(n => String(n.assignmentId) !== String(assignmentId))
+    }));
+  };
+
+  const updateSubmission = (assignmentId, studentId, grade, feedback) => {
+    setDb(prev => ({
+      ...prev,
+      submissions: prev.submissions.map(s => 
+        (String(s.assignmentId) === String(assignmentId) && String(s.studentId) === String(studentId))
+          ? { ...s, status: 'reviewed', grade, feedback, reviewedAt: new Date().toISOString() }
+          : s
+      )
+    }));
+  };
+
+  const sendNotification = (userId, assignmentId, message) => {
+    setDb(prev => ({
+      ...prev,
+      notifications: [
+        ...prev.notifications, 
+        { id: Date.now(), userId, assignmentId, message, type: 'reminder', createdAt: new Date().toISOString() }
+      ]
     }));
   };
 
   return (
-    <div className="relative min-h-screen font-sans text-textMain overflow-hidden">
+    <div className="min-h-screen bg-transparent">
       {/* Background Orbs */}
       <div className="bg-orb orb-1"></div>
       <div className="bg-orb orb-2"></div>
+      <div className="bg-orb orb-3"></div>
 
       {!currentUser ? (
-        <Login onLogin={handleLogin} />
+        <Login onLogin={handleLogin} users={db.users.filter(u => u.role === 'student')} />
       ) : (
         <div className="dashboard-layout relative z-10 animate-fadeIn container mx-auto px-2 sm:px-4 py-4 sm:py-8">
           <header className="glass-panel rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 px-4 sm:px-6 py-4 mb-6 sm:mb-8 animate-slideDown shadow-lg">
             <div className="flex items-center gap-3">
               <Layers className="text-primary w-6 h-6" />
-              <h2 className="font-bold text-lg sm:text-xl tracking-tight">Eazy<span className="text-primary">Assign</span></h2>
+              <h1 className="font-bold text-lg sm:text-xl tracking-tight">Eazy<span className="text-primary">Assign</span></h1>
             </div>
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
               <div className="flex items-center gap-2 p-1 pr-3 rounded-full glass-panel-light max-w-[200px] overflow-hidden">
@@ -109,9 +143,21 @@ function App() {
           </header>
 
           {currentUser.role === 'admin' ? (
-            <AdminDashboard db={db} currentUser={currentUser} addAssignment={addAssignment} removeAssignment={removeAssignment} />
+            <AdminDashboard 
+              db={db} 
+              currentUser={currentUser} 
+              addAssignment={addAssignment} 
+              removeAssignment={removeAssignment}
+              updateSubmission={updateSubmission}
+              sendNotification={sendNotification}
+            />
           ) : (
-            <StudentDashboard db={db} currentUser={currentUser} addSubmission={addSubmission} />
+            <StudentDashboard 
+              db={db} 
+              currentUser={currentUser} 
+              addSubmission={addSubmission} 
+              notifications={db.notifications.filter(n => n.userId === currentUser.id)}
+            />
           )}
         </div>
       )}
