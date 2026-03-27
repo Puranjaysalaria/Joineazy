@@ -81,7 +81,7 @@ function App() {
       {!currentUser ? (
         <Login onLogin={handleLogin} />
       ) : (
-        <div className="dashboard-layout animate-fadeIn container mx-auto px-4 py-8">
+        <div className="dashboard-layout relative z-10 animate-fadeIn container mx-auto px-4 py-8">
           <header className="glass-panel rounded-xl flex justify-between items-center px-6 py-4 mb-8 animate-slideDown shadow-lg">
             <div className="flex items-center gap-3">
               <Layers className="text-primary w-6 h-6" />

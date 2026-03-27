@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Calendar, Link, X, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Calendar, Link, X, CheckCircle, Trash2, AlertTriangle, Users, CheckCircle2, Clock } from 'lucide-react';
 
 export default function AdminDashboard({ db, currentUser, addAssignment, removeAssignment }) {
   const [activeTab, setActiveTab] = useState('assignments');
@@ -53,6 +53,39 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
         <button className="btn btn-primary flex items-center gap-2" onClick={() => setIsModalOpen(true)}>
           <Plus className="w-5 h-5" /> New Assignment
         </button>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-slideDown">
+        <div className="glass-panel p-4 rounded-xl flex items-center gap-4 border-white/5 shadow-sm">
+          <div className="p-3 bg-primary/10 rounded-lg text-primary">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-white">{totalStudents}</div>
+            <div className="text-xs text-textMuted uppercase tracking-wider font-semibold">Total Students</div>
+          </div>
+        </div>
+        <div className="glass-panel p-4 rounded-xl flex items-center gap-4 border-white/5 shadow-sm">
+          <div className="p-3 bg-warning/10 rounded-lg text-warning">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-white">{totalAssignments}</div>
+            <div className="text-xs text-textMuted uppercase tracking-wider font-semibold">Assignments</div>
+          </div>
+        </div>
+        <div className="glass-panel p-4 rounded-xl flex items-center gap-4 border-white/5 shadow-sm">
+          <div className="p-3 bg-success/10 rounded-lg text-success">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-white">
+              {db.submissions.length > 0 ? Math.round((db.submissions.filter(s => s.status === 'submitted').length / (totalStudents * totalAssignments || 1)) * 100) : 0}%
+            </div>
+            <div className="text-xs text-textMuted uppercase tracking-wider font-semibold">Global Progress</div>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}

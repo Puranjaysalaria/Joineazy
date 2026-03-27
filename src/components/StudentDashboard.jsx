@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { UploadCloud, CheckCircle, FileText, Clock, FileCheck } from 'lucide-react';
+import { UploadCloud, CheckCircle, FileText, Clock, FileCheck, Layout } from 'lucide-react';
 
 export default function StudentDashboard({ db, currentUser, addSubmission }) {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
@@ -44,13 +44,20 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
 
   return (
     <main className="animate-fadeIn">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4 animate-slideDown">
         <div>
-          <h1 className="text-3xl font-bold mb-2 text-white">My Assignments</h1>
-          <p className="text-textMuted text-sm md:text-base">Track and submit your pending work.</p>
+          <h1 className="text-3xl font-bold mb-2 text-white">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+          <p className="text-textMuted text-sm md:text-base">You have <span className="text-primary font-bold">{totalCount - completedCount} tasks</span> remaining for this week.</p>
         </div>
-        <div className="glass-panel px-4 py-2 rounded-lg text-sm shadow-sm border-white/10">
-          <span><strong className="text-white text-base">{completedCount}</strong> / {totalCount} Completed</span>
+        <div className="glass-panel p-4 rounded-xl shadow-lg border-white/10 flex items-center gap-4 min-w-[200px]">
+          <div className="w-12 h-12 rounded-full border-4 border-surface/50 relative flex items-center justify-center">
+             <div className="absolute inset-0 border-4 border-primary rounded-full" style={{ clipPath: `inset(0 ${100 - (completedCount / (totalCount || 1)) * 100}% 0 0)` }}></div>
+             <span className="text-xs font-bold">{Math.round((completedCount / (totalCount || 1)) * 100)}%</span>
+          </div>
+          <div>
+            <div className="text-sm font-bold text-white">Course Progress</div>
+            <div className="text-xs text-textMuted">{completedCount} of {totalCount} Completed</div>
+          </div>
         </div>
       </div>
 
@@ -95,7 +102,15 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
             </div>
           </div>
         ))}
-        {totalCount === 0 && <p className="text-textMuted col-span-full py-8 text-center text-lg">You have no active assignments.</p>}
+        {totalCount === 0 && (
+          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center animate-fadeIn">
+            <div className="w-20 h-20 bg-surface rounded-3xl flex items-center justify-center mb-6 border border-white/10 shadow-glow">
+              <Layout className="w-10 h-10 text-textMuted/50" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Everything's Clear!</h3>
+            <p className="text-textMuted max-w-xs">No assignments have been posted yet. Enjoy your free time or check back later.</p>
+          </div>
+        )}
       </div>
 
       {/* Double Verification Modals - Rendered via Portal to escape CSS bounding boxes */}
