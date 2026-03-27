@@ -16,6 +16,7 @@ export default {
         primary: "#8b5cf6",
         primaryHover: "#7c3aed",
         success: "#10b981",
+        successHover: "#059669",
         warning: "#f59e0b",
         danger: "#ef4444",
         textMain: "#f8fafc",

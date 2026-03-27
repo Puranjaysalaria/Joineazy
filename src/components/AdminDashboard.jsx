@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Calendar, Link, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Plus, Calendar, Link, X, CheckCircle } from 'lucide-react';
 
 export default function AdminDashboard({ db, currentUser, addAssignment }) {
   const [activeTab, setActiveTab] = useState('assignments');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Filter assignments directly created by this admin
   const adminAssignments = db.assignments.filter(a => a.createdBy === currentUser.id);
@@ -18,6 +20,10 @@ export default function AdminDashboard({ db, currentUser, addAssignment }) {
     addAssignment(formData);
     setFormData({ title: '', description: '', dueDate: '', driveLink: '' });
     setIsModalOpen(false);
+    
+    // Show success popup notification
+    setToastMessage('Assignment created successfully!');
+    setTimeout(() => setToastMessage(''), 3500);
   };
 
   return (
@@ -134,46 +140,88 @@ export default function AdminDashboard({ db, currentUser, addAssignment }) {
         </div>
       )}
 
-      {/* Creation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-          <div className="glass-panel w-full max-w-lg rounded-2xl overflow-hidden p-6 animate-modalIn shadow-2xl border-white/10">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-white">Create New Assignment</h2>
-              <button className="icon-btn" onClick={() => setIsModalOpen(false)}>
-                <X className="w-5 h-5" />
-              </button>
+      {/* Add Assignment Modal - Rendered via Portal */}
+      {isModalOpen && createPortal(
+        <div className="fixed top-0 left-0 w-screen h-screen bg-black/70 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
+          <div className="glass-panel w-full max-w-md rounded-2xl p-6 relative animate-modalIn shadow-4xl border-white/10">
+            <button 
+              className="absolute right-4 top-4 text-textMuted hover:text-white transition-colors"
+              onClick={() => setIsModalOpen(false)}
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-primary/20 rounded-xl text-primary border border-primary/20">
+                <Plus className="w-6 h-6" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Create Assignment</h2>
             </div>
-            <form onSubmit={handleCreate}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1 text-textMuted">Title *</label>
-                <input type="text" className="input-field" required placeholder="e.g. Midterm Report"
-                  value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+            
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-textMuted">Assignment Title *</label>
+                <input 
+                  type="text" 
+                  required
+                  className="input-field" 
+                  placeholder="e.g. UX Research Study"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                />
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1 text-textMuted">Description</label>
-                <textarea className="input-field min-h-[80px] resize-y" required placeholder="Instructions for students..."
-                  value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-textMuted">Description *</label>
+                <textarea 
+                  required
+                  rows="3" 
+                  className="input-field resize-none" 
+                  placeholder="Describe the task..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                ></textarea>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-textMuted">Due Date *</label>
-                  <input type="date" className="input-field" required 
-                    value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} />
+                  <label className="block text-sm font-medium mb-1.5 text-textMuted">Due Date *</label>
+                  <input 
+                    type="date" 
+                    required
+                    className="input-field w-full" 
+                    value={formData.dueDate}
+                    onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-textMuted">Drive Folder Link</label>
-                  <input type="url" className="input-field" placeholder="https://drive.google.com/..." 
-                    value={formData.driveLink} onChange={e => setFormData({...formData, driveLink: e.target.value})} />
+                  <label className="block text-sm font-medium mb-1.5 text-textMuted flex items-center gap-1">
+                    <Link className="w-3.5 h-3.5" /> Drive Link
+                  </label>
+                  <input 
+                    type="url" 
+                    className="input-field" 
+                    placeholder="https://drive..."
+                    value={formData.driveLink}
+                    onChange={(e) => setFormData({...formData, driveLink: e.target.value})}
+                  />
                 </div>
               </div>
-              <div className="flex justify-end gap-3">
-                <button type="button" className="btn" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create Assignment</button>
+              
+              <div className="pt-4 mt-6 border-t border-white/10 flex justify-end gap-3">
+                <button type="button" className="btn hover:bg-white/10 px-6" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary px-8 hover-glow shadow-primaryGlow">Create</button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && createPortal(
+        <div className="fixed bottom-6 right-6 bg-success/20 border border-success/50 text-success px-6 py-4 rounded-xl shadow-glow animate-slideUp z-[9999] flex items-center gap-3">
+          <CheckCircle className="w-6 h-6" />
+          <span className="font-semibold">{toastMessage}</span>
+        </div>,
+        document.body
       )}
     </main>
   );

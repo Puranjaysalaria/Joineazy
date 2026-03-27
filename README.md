@@ -1,16 +1,47 @@
-# Joineazy Assignment Dashboard
+# JoinEazy - Assignment & Review Dashboard
 
-A clean, responsive dashboard for a student-assignment management system built with **React**, **Vite**, and **Tailwind CSS**.
+A premium, recruiter-impressive Assignment & Review Dashboard built with **React.js** and **Tailwind CSS**. Designed for an internship application to demonstrate high-end frontend engineering and modern UI/UX principles.
 
-## Features
-- **Role-based Functionality**: Easily switch between Admin (Professor) and Student roles.
-- **Admin Dashboard**: Create detailed assignments (including Google Drive links) and dynamically track student completion rates via animated progress bars.
-- **Student Dashboard**: View pending assignments and submit work through a double-verification flow with file upload UI.
-- **Premium UI/UX**: Designed from scratch using a dark "glassmorphism" aesthetic with floating orbs, blurred panels, and CSS animations.
-- **Persisted Mock State**: Operates fully on the frontend without a backend using React Hooks (`useState`, `useEffect`) and `localStorage` to simulate data persistence.
+## 🚀 Features
 
-## Tech Stack
-- React.js
-- Tailwind CSS
-- Vite
-- Lucide React (Icons)
+- **Role-Based Access**: Specialized views for Admins (Professors) and Students.
+- **Dark Glassmorphism UI**: High-end aesthetic with blurred backdrops, smooth transitions, and glowing accents.
+- **Real-Time Progress Tracking**: Admin dashboard visualizes student submission status with animated progress bars.
+- **Double-Verification Flow**: Secure student submission process with confirmation modals and file upload support.
+- **Instant Feedback**: Sleek, auto-dismissing toast notifications for all key actions.
+- **Responsive Architecture**: Fully optimized for desktop, tablet, and mobile devices.
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React.js (Vite)
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Rendering**: React Portals (for flawless modal/notification overlays)
+
+## 📦 Setup & Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Puranjaysalaria/Joineazy.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd Joineazy
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## 📝 Usage
+
+- **Login**: Select your role from the landing page.
+- **Admin**: Create assignments via the "+" button. Track student progress in the list view.
+- **Student**: View your individual assignment list. Submit tasks by attaching a file and confirming through the double-verification popup.
+
+---
+Built with ❤️ for Eazy's Internship Application.

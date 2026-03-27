@@ -20,18 +20,39 @@
     @apply appearance-none border border-borderColor bg-surface text-textMain px-4 py-2 rounded-lg font-medium cursor-pointer transition-all duration-200 hover:bg-surfaceHover hover:border-borderHighlight;
   }
   .btn-primary {
-    @apply bg-primary text-white border-transparent shadow-glow hover:bg-primaryHover hover:shadow-glowHover;
+    @apply bg-primary text-white hover:bg-primaryHover hover:shadow-lg border border-primary/50;
   }
   .btn-success {
-    @apply bg-success text-white border-transparent shadow-successGlow hover:bg-emerald-600;
+    @apply bg-success text-white hover:bg-successHover border border-success/50;
   }
   .icon-btn {
     @apply bg-transparent border-none cursor-pointer inline-flex p-2 rounded-lg transition-colors hover:bg-surfaceHover text-textMuted hover:text-textMain;
   }
   
+  /* Custom Box Shadows */
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4); /* Used specifically for floating modals */
+  }
+  .shadow-successGlow {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+  }
+  .shadow-cardHover {
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5); /* Deep shadow, no colored bleed */
+  }
   /* Inputs */
   .input-field {
     @apply w-full bg-black/20 border border-borderColor text-textMain px-4 py-3 rounded-lg outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/40 font-sans;
+  }
+  
+  /* Make native calendar icon visible on dark theme */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.6;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
   }
 
   /* Status Badges */

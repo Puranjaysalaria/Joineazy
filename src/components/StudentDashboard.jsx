@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Clock, CheckCircle, ExternalLink, Check, UploadCloud } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { UploadCloud, CheckCircle, FileText, Clock, FileCheck } from 'lucide-react';
 
 export default function StudentDashboard({ db, currentUser, addSubmission }) {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [modalState, setModalState] = useState('none'); // 'none', 'confirm', 'success'
+  const [modalState, setModalState] = useState('none'); // 'none', 'confirm'
   const [fileAttached, setFileAttached] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const assignmentsWithStatus = db.assignments.map(a => {
     const isSubmitted = db.submissions.some(s => s.assignmentId === a.id && s.studentId === currentUser.id);
@@ -20,8 +22,16 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
   };
 
   const handleConfirm = () => {
-    addSubmission(currentUser.id, selectedAssignment.id);
-    setModalState('success');
+    addSubmission(selectedAssignment.id);
+    setModalState('none');
+    setTimeout(() => {
+      setSelectedAssignment(null);
+      setFileAttached(false);
+    }, 300);
+    
+    // Show success popup notification
+    setToastMessage(`"${selectedAssignment.title}" submitted successfully!`);
+    setTimeout(() => setToastMessage(''), 3500);
   };
 
   const handleClose = () => {
@@ -47,9 +57,14 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {assignmentsWithStatus.map((assignment, idx) => (
           <div key={assignment.id} 
-               className="glass-panel p-6 rounded-xl animate-slideUp flex flex-col border-white/5 hover:border-white/20 transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-cardHover"
+               className="glass-panel p-6 rounded-xl animate-slideUp flex flex-col border-white/5 hover:border-white/20 transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-cardHover relative overflow-hidden"
                style={{ animationDelay: `${idx * 0.1}s` }}>
-            <div className="flex justify-between items-start mb-4">
+            {/* Ambient Background Glow Effect (Radial Gradient prevents Webkit blur clipping bugs) */}
+            <div 
+              className="absolute top-[-50px] right-[-50px] w-64 h-64 opacity-30 pointer-events-none transition-colors duration-700 z-0"
+              style={{ background: `radial-gradient(circle, ${assignment.isSubmitted ? '#10b981' : '#8b5cf6'} 0%, transparent 70%)` }}
+            ></div>
+            <div className="flex justify-between items-start mb-4 relative z-10">
               <span className={`status-badge flex items-center gap-1 ${assignment.isSubmitted ? 'status-submitted' : 'status-pending'}`}>
                 {assignment.isSubmitted ? <><CheckCircle className="w-3.5 h-3.5" /> Submitted</> : 'Pending'}
               </span>
@@ -63,14 +78,14 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
             
             {assignment.driveLink && (
               <a href={assignment.driveLink} target="_blank" rel="noreferrer" className="text-sm text-primary hover:text-primaryHover transition-colors flex items-center gap-1 mb-5 w-max font-medium bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/20">
-                <ExternalLink className="w-4 h-4" /> Supporting Materials
+                <FileText className="w-4 h-4" /> Supporting Materials
               </a>
             )}
             
             <div className="mt-auto pt-4 border-t border-white/10">
               {assignment.isSubmitted ? (
                 <button className="btn w-full btn-success flex justify-center items-center gap-2 cursor-default opacity-90" disabled>
-                  <Check className="w-4 h-4" /> Completed
+                  <CheckCircle className="w-4 h-4" /> Completed
                 </button>
               ) : (
                 <button className="btn btn-primary w-full flex justify-center items-center gap-2" onClick={() => handleInitiate(assignment)}>
@@ -83,12 +98,12 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
         {totalCount === 0 && <p className="text-textMuted col-span-full py-8 text-center text-lg">You have no active assignments.</p>}
       </div>
 
-      {/* Double Verification Modals */}
-      {modalState !== 'none' && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      {/* Double Verification Modals - Rendered via Portal to escape CSS bounding boxes */}
+      {modalState !== 'none' && createPortal(
+        <div className="fixed top-0 left-0 w-screen h-screen bg-black/70 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
           
           {modalState === 'confirm' && selectedAssignment && (
-            <div className="glass-panel w-full max-w-md rounded-2xl p-8 text-center animate-modalIn shadow-2xl border-white/10">
+            <div className="glass-panel w-full max-w-md rounded-2xl p-8 text-center animate-modalIn shadow-4xl border-white/10 relative">
               <div className="w-16 h-16 bg-surface rounded-full flex justify-center items-center mx-auto mb-5 border border-primary/50 shadow-glow">
                 <UploadCloud className="w-8 h-8 text-primary" />
               </div>
@@ -103,7 +118,7 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
                 <input 
                   type="file" 
                   onChange={(e) => setFileAttached(e.target.files.length > 0)}
-                  className="block w-full text-sm text-textMuted file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30 transition-all cursor-pointer"
+                  className="block w-full text-sm text-textMuted file:mr-4 file:py-2 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary file:transition-all file:duration-300 hover:file:bg-primary hover:file:text-white hover:file:shadow-glow active:file:scale-95 file:cursor-pointer cursor-pointer"
                 />
               </div>
               
@@ -115,22 +130,17 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
               </div>
             </div>
           )}
+        </div>,
+        document.body
+      )}
 
-          {modalState === 'success' && selectedAssignment && (
-            <div className="glass-panel w-full max-w-md rounded-2xl p-8 text-center animate-modalIn shadow-2xl border-white/10">
-              <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex justify-center items-center mx-auto mb-5 border border-success/50 shadow-successGlow relative">
-                <div className="absolute inset-0 bg-success rounded-full animate-ping opacity-20"></div>
-                <Check className="w-8 h-8 text-success" />
-              </div>
-              <h2 className="text-2xl font-bold mb-3 text-white">Success!</h2>
-              <p className="text-textMuted mb-8 text-sm">
-                Your work for "{selectedAssignment.title}" has been recorded successfully.
-              </p>
-              <button className="btn btn-success px-10" onClick={handleClose}>Done</button>
-            </div>
-          )}
-
-        </div>
+      {/* Toast Notification Pop-up - Rendered via Portal */}
+      {toastMessage && createPortal(
+        <div className="fixed bottom-6 right-6 bg-success/20 border border-success/50 text-success px-6 py-4 rounded-xl shadow-glow animate-slideUp z-[9999] flex items-center gap-3">
+          <FileCheck className="w-6 h-6" />
+          <span className="font-semibold">{toastMessage}</span>
+        </div>,
+        document.body
       )}
     </main>
   );

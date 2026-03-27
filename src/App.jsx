@@ -54,11 +54,14 @@ function App() {
     }));
   };
 
-  const addSubmission = (studentId, assignmentId) => {
-    setDb(prev => ({
-      ...prev,
-      submissions: [...prev.submissions, { studentId, assignmentId, status: 'submitted', timestamp: new Date().toISOString() }]
-    }));
+  const addSubmission = (assignmentId) => {
+    setDb(prev => {
+      if (prev.submissions.some(s => String(s.assignmentId) === String(assignmentId) && String(s.studentId) === String(currentUser.id))) return prev;
+      return {
+        ...prev,
+        submissions: [...prev.submissions, { studentId: currentUser.id, assignmentId, status: 'submitted', timestamp: new Date().toISOString() }]
+      };
+    });
   };
 
   return (
