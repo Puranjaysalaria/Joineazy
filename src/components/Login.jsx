@@ -162,11 +162,14 @@ export default function Login({ onLogin, users }) {
                   />
 
                   {adminError && (
-                    <p className="text-danger text-xs text-left">{adminError}</p>
+                    <p className="text-danger text-xs text-left">
+                      {adminError}
+                    </p>
                   )}
 
                   <p className="text-[11px] text-textMuted text-left">
-                    Demo code: <span className="text-warning font-semibold">admin123</span>
+                    Demo code:{" "}
+                    <span className="text-warning font-semibold">admin123</span>
                   </p>
                 </div>
 
@@ -181,7 +184,10 @@ export default function Login({ onLogin, users }) {
                   >
                     Cancel
                   </button>
-                  <button className="btn btn-primary flex-1" onClick={handleAdminAccess}>
+                  <button
+                    className="btn btn-primary flex-1"
+                    onClick={handleAdminAccess}
+                  >
                     Continue
                   </button>
                 </div>
