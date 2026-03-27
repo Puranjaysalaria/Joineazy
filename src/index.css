@@ -8,11 +8,20 @@
   #root {
     width: 100%;
     max-width: 100%;
-    overflow-x: clip;
+    margin: 0;
+  }
+
+  html {
+    overflow: hidden;
   }
 
   body {
-    @apply bg-bgBase text-textMain antialiased min-h-screen overflow-x-hidden;
+    @apply bg-bgBase text-textMain antialiased overflow-hidden;
+  }
+
+  #root {
+    height: 100dvh;
+    overflow: hidden;
   }
 }
 
@@ -58,6 +67,15 @@
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--primary-rgb), 0.5);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
   /* Custom Box Shadows */
   .shadow-glow {

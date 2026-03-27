@@ -6,7 +6,7 @@ export default function Login({ onLogin, users }) {
   const [showStudents, setShowStudents] = useState(false);
 
   return (
-    <div className="min-h-screen w-full max-w-full bg-transparent flex flex-col items-center justify-center p-3 sm:p-4 py-10 sm:py-12 overflow-y-auto overflow-x-hidden relative font-outfit text-white">
+    <div className="min-h-dvh w-full max-w-full bg-transparent flex flex-col items-center justify-center p-3 sm:p-4 py-10 sm:py-12 overflow-x-hidden relative font-outfit text-white">
       <div className="relative z-10 w-full max-w-2xl px-1 sm:px-0 flex flex-col items-center animate-fadeIn">
         {/* Brand Header */}
         <div className="text-center mb-8 relative z-20">
@@ -44,7 +44,7 @@ export default function Login({ onLogin, users }) {
               {showStudents &&
                 createPortal(
                   <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex justify-center items-center p-4 animate-fadeIn">
-                    <div className="glass-panel w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-3xl p-6 sm:p-8 relative animate-modalIn shadow-4xl border-white/10">
+                    <div className="glass-panel w-full max-w-sm max-h-[85vh] overflow-y-auto overscroll-contain rounded-3xl p-6 sm:p-8 relative animate-modalIn shadow-4xl border-white/10">
                       <button
                         onClick={() => setShowStudents(false)}
                         className="absolute right-6 top-6 text-textMuted hover:text-white transition-colors p-1"
@@ -65,7 +65,7 @@ export default function Login({ onLogin, users }) {
                         </p>
                       </div>
 
-                      <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar px-1">
+                      <div className="space-y-2 max-h-72 overflow-y-auto overscroll-contain custom-scrollbar px-1">
                         {users.map((s) => (
                           <button
                             key={s.id}

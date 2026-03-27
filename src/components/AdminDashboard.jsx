@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Plus,
@@ -89,6 +89,23 @@ export default function AdminDashboard({
             (completedSubmissionPairs / totalPossibleSubmissions) * 100,
           ),
         );
+
+  const hasOpenOverlay =
+    isModalOpen ||
+    isDeleteModalOpen ||
+    gradingModal.open ||
+    Boolean(reminderModal.student);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    if (hasOpenOverlay) {
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [hasOpenOverlay]);
 
   const openGradingModal = (student, assignment, submission) => {
     setGradingModal({ open: true, student, assignment, submission });
@@ -229,7 +246,7 @@ export default function AdminDashboard({
       </div>
 
       {/* Tabs */}
-      <div className="glass-panel flex gap-1 sm:gap-2 p-1 mb-6 sm:mb-8 rounded-lg w-full sm:w-max shadow-sm overflow-x-auto no-scrollbar">
+      <div className="glass-panel flex gap-1 sm:gap-2 p-1 mb-6 sm:mb-8 rounded-lg w-full sm:w-max shadow-sm">
         <button
           className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md transition-colors text-xs sm:text-sm font-medium whitespace-nowrap ${activeTab === "assignments" ? "bg-surfaceActive text-white" : "text-textMuted hover:text-white"}`}
           onClick={() => setActiveTab("assignments")}
@@ -335,7 +352,7 @@ export default function AdminDashboard({
       {/* Students View */}
       {activeTab === "students" && (
         <div className="glass-panel rounded-xl overflow-hidden shadow-sm animate-slideUp">
-          <div className="overflow-x-auto max-w-full">
+          <div className="overflow-x-auto overscroll-x-contain max-w-full no-scrollbar">
             <table className="w-full table-auto text-left border-collapse">
               <thead>
                 <tr className="border-b border-borderColor bg-black/20">

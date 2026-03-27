@@ -188,7 +188,7 @@ function App() {
   };
 
   return (
-    <div className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-transparent">
+    <div className="relative h-dvh w-full max-w-full overflow-x-hidden overflow-y-auto bg-transparent">
       {/* Background Orbs */}
       <div className="bg-orb orb-1"></div>
       <div className="bg-orb orb-2"></div>
