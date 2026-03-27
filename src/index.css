@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bgBase text-textMain antialiased min-h-screen overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-surface backdrop-blur-md border border-borderColor;
+  }
+  .glass-panel-light {
+    @apply bg-white/5 backdrop-blur-md border border-borderColor;
+  }
+  /* Buttons */
+  .btn {
+    @apply appearance-none border border-borderColor bg-surface text-textMain px-4 py-2 rounded-lg font-medium cursor-pointer transition-all duration-200 hover:bg-surfaceHover hover:border-borderHighlight;
+  }
+  .btn-primary {
+    @apply bg-primary text-white border-transparent shadow-glow hover:bg-primaryHover hover:shadow-glowHover;
+  }
+  .btn-success {
+    @apply bg-success text-white border-transparent shadow-successGlow hover:bg-emerald-600;
+  }
+  .icon-btn {
+    @apply bg-transparent border-none cursor-pointer inline-flex p-2 rounded-lg transition-colors hover:bg-surfaceHover text-textMuted hover:text-textMain;
+  }
+  
+  /* Inputs */
+  .input-field {
+    @apply w-full bg-black/20 border border-borderColor text-textMain px-4 py-3 rounded-lg outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/40 font-sans;
+  }
+
+  /* Status Badges */
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-xs font-semibold border;
+  }
+  .status-pending {
+    @apply bg-warning/10 text-warning border-warning/20;
+  }
+  .status-submitted {
+    @apply bg-success/10 text-success border-success/20;
+  }
+}
+
+/* Background Effects */
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.5;
+}
+.orb-1 {
+  top: -100px;
+  left: -100px;
+  width: 400px;
+  height: 400px;
+  background: rgba(139, 92, 246, 0.4); /* primary-glow */
+}
+.orb-2 {
+  bottom: -100px;
+  right: -100px;
+  width: 300px;
+  height: 300px;
+  background: rgba(16, 185, 129, 0.2); /* success-glow */
+}
