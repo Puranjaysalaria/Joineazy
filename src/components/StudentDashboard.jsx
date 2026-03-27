@@ -21,6 +21,10 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
     setModalState('confirm');
   };
 
+  const handleNextStep = () => {
+    setModalState('final');
+  };
+
   const handleConfirm = () => {
     addSubmission(selectedAssignment.id);
     setModalState('none');
@@ -131,34 +135,56 @@ export default function StudentDashboard({ db, currentUser, addSubmission }) {
         )}
       </div>
 
-      {/* Double Verification Modals - Rendered via Portal to escape CSS bounding boxes */}
+      {/* Double Verification Modals - Rendered via Portal */}
       {modalState !== 'none' && createPortal(
         <div className="fixed top-0 left-0 w-screen h-screen bg-black/70 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
           
           {modalState === 'confirm' && selectedAssignment && (
-            <div className="glass-panel w-full max-w-md rounded-2xl p-8 text-center animate-modalIn shadow-4xl border-white/10 relative">
+            <div className="glass-panel w-full max-w-md rounded-2xl p-6 sm:p-8 text-center animate-modalIn shadow-4xl border-white/10 relative">
               <div className="w-16 h-16 bg-surface rounded-full flex justify-center items-center mx-auto mb-5 border border-primary/50 shadow-glow">
                 <UploadCloud className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold mb-3 text-white">Submit Assignment</h2>
-              <p className="text-textMuted mb-6 text-sm leading-relaxed">
-                Are you sure you want to submit your work for <strong className="text-white">"{selectedAssignment.title}"</strong>? This action will mark it as complete.
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 text-white">Upload Submission</h2>
+              <p className="text-textMuted mb-6 text-xs sm:text-sm leading-relaxed">
+                Step 1 of 2: Please attach your completed assignment for <strong className="text-white">"{selectedAssignment.title}"</strong>.
               </p>
 
               {/* File Attachment UI */}
-              <div className="mb-8 text-left bg-black/20 p-4 rounded-xl border border-white/5">
-                <label className="block text-sm font-medium mb-2 text-textMuted">Attach File (Optional)</label>
+              <div className="mb-6 text-left bg-black/20 p-4 rounded-xl border border-white/5">
+                <label className="block text-xs font-medium mb-2 text-textMuted">Choose File</label>
                 <input 
                   type="file" 
                   onChange={(e) => setFileAttached(e.target.files.length > 0)}
-                  className="block w-full text-sm text-textMuted file:mr-4 file:py-2 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary file:transition-all file:duration-300 hover:file:bg-primary hover:file:text-white hover:file:shadow-glow active:file:scale-95 file:cursor-pointer cursor-pointer"
+                  className="block w-full text-xs text-textMuted file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] sm:text-xs file:font-semibold file:bg-primary/20 file:text-primary file:transition-all hover:file:bg-primary hover:file:text-white file:cursor-pointer cursor-pointer"
                 />
               </div>
               
               <div className="flex justify-center gap-3">
-                <button className="btn px-6 hover:bg-white/10" onClick={handleClose}>Cancel</button>
-                <button className="btn btn-primary px-6 hover-glow" onClick={handleConfirm}>
-                  Yes, I have submitted
+                <button className="btn flex-1 py-3 text-xs sm:text-sm hover:bg-white/10" onClick={handleClose}>Cancel</button>
+                <button className={`btn flex-1 py-3 text-xs sm:text-sm ${fileAttached ? 'btn-primary shadow-primaryGlow' : 'bg-surfaceActive text-textMuted cursor-not-allowed'}`} disabled={!fileAttached} onClick={handleNextStep}>
+                  Submit
+                </button>
+              </div>
+              {!fileAttached && <p className="text-[10px] text-warning mt-3">File selection required to proceed</p>}
+            </div>
+          )}
+
+          {modalState === 'final' && selectedAssignment && (
+            <div className="glass-panel w-full max-w-sm rounded-2xl p-8 text-center animate-fadeIn shadow-4xl border-white/10 relative">
+              <div className="w-16 h-16 bg-surface rounded-full flex justify-center items-center mx-auto mb-5 border border-warning/50 shadow-glow">
+                <CheckCircle className="w-8 h-8 text-warning" />
+              </div>
+              <h2 className="text-xl font-bold mb-3 text-white">Are you sure?</h2>
+              <p className="text-textMuted mb-6 text-xs leading-relaxed">
+                You are about to submit your work for <strong className="text-white">"{selectedAssignment.title}"</strong>. This action will mark the assignment as complete.
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button className="btn btn-primary w-full py-3 shadow-glow" onClick={handleConfirm}>
+                  Yes, I'm Sure
+                </button>
+                <button className="btn w-full py-3 text-xs text-textMuted hover:text-white border-none" onClick={() => setModalState('confirm')}>
+                  Wait, Go Back
                 </button>
               </div>
             </div>
