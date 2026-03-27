@@ -381,7 +381,7 @@ export default function AdminDashboard({ db, currentUser, addAssignment, removeA
       {/* Delete Confirmation Modal - Rendered via Portal */}
       {isDeleteModalOpen && createPortal(
         <div className="fixed top-0 left-0 w-screen h-screen bg-black/80 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
-          <div className="glass-panel w-full max-w-sm rounded-2xl p-6 relative animate-modalIn border-danger/20 shadow-2xl">
+          <div className="glass-panel w-full max-w-sm rounded-2xl p-5 md:p-6 relative animate-modalIn border-danger/20 shadow-2xl">
             <div className="flex flex-col items-center text-center">
               <div className="p-4 bg-danger/20 rounded-full text-danger mb-4 border border-danger/30 animate-pulse">
                 <AlertTriangle className="w-8 h-8" />

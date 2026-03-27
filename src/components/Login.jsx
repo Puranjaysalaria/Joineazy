@@ -6,15 +6,17 @@ export default function Login({ onLogin, users }) {
   const [showStudents, setShowStudents] = useState(false);
 
   return (
-    <div className="min-h-screen flex justify-center items-center relative overflow-hidden animate-fadeIn text-white">
-      <div className="flex flex-col items-center gap-6 relative z-10 w-full max-w-md px-4">
-        <div className="glass-panel text-center p-8 md:p-12 rounded-2xl w-full shadow-2xl backdrop-blur-xl border-white/10 relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
-          <div className="mb-6 flex justify-center relative z-10">
-            <div className="p-4 bg-primary/20 rounded-xl shadow-glow">
-              <Layers className="text-primary w-12 h-12" />
-            </div>
+    <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-4 py-12 overflow-y-auto relative font-outfit text-white">
+      <div className="relative z-10 w-full max-w-2xl flex flex-col items-center animate-fadeIn">
+        {/* Brand Header */}
+        <div className="text-center mb-8 relative z-20">
+          <div className="bg-primary/20 p-4 rounded-3xl inline-block mb-4 border border-primary/30 shadow-glow-sm">
+            <Layers className="w-10 h-10 md:w-12 md:h-12 text-primary" strokeWidth={2.5} />
           </div>
+        </div>
+
+        <div className="glass-panel text-center p-6 md:p-12 rounded-2xl w-full shadow-2xl backdrop-blur-xl border-white/10 relative group">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
           <h1 className="text-3xl font-bold mb-2 tracking-tight text-white relative z-10">Welcome back</h1>
           <p className="text-textMuted mb-8 text-sm md:text-base relative z-10">Select your role to continue to the dashboard.</p>
           
