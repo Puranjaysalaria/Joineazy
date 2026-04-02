@@ -15,7 +15,7 @@ export default function StudentDashboard({
   db, currentUser, view, selectedCourse,
   onNavigateToCourse, onNavigateToDashboard,
   addSubmission, addGroupSubmission, createGroup, joinGroup, leaveGroup,
-  changeGroupLeader, notifications,
+  changeGroupLeader, removeGroupMember, addGroupMember, notifications,
 }) {
   // Student's enrolled courses
   const enrolledCourseIds = db.enrollments
@@ -50,6 +50,8 @@ export default function StudentDashboard({
         joinGroup={joinGroup}
         leaveGroup={leaveGroup}
         changeGroupLeader={changeGroupLeader}
+        removeGroupMember={removeGroupMember}
+        addGroupMember={addGroupMember}
       />
     );
   }
@@ -156,7 +158,7 @@ function StudentCourseDashboard({
 function StudentCourseDetail({
   course, db, currentUser, notifications,
   addSubmission, addGroupSubmission, createGroup, joinGroup, leaveGroup,
-  changeGroupLeader,
+  changeGroupLeader, removeGroupMember, addGroupMember,
 }) {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [modalState, setModalState] = useState("none"); // none | confirm | final
@@ -250,6 +252,8 @@ function StudentCourseDetail({
           joinGroup={joinGroup}
           leaveGroup={leaveGroup}
           changeGroupLeader={changeGroupLeader}
+          removeGroupMember={removeGroupMember}
+          addGroupMember={addGroupMember}
           onClose={() => setShowGroupPanel(false)}
         />
       )}
@@ -598,8 +602,8 @@ function AssignmentCard({
 // ─────────────────────────────────────────────
 // GROUP PANEL
 // ─────────────────────────────────────────────
-function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, leaveGroup, changeGroupLeader, onClose }) {
-  const [mode, setMode] = useState(myGroup ? "view" : "options"); // view | create | join | options
+function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, leaveGroup, changeGroupLeader, removeGroupMember, addGroupMember, onClose }) {
+  const [mode, setMode] = useState(myGroup ? "view" : "options"); // view | create | join | options | addMember
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -609,6 +613,11 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
       !g.memberIds.includes(currentUser.id) &&
       !g.memberIds.includes(String(currentUser.id))
   );
+
+  const studentsInGroups = allCourseGroups.flatMap(g => g.memberIds).map(Number);
+  const allEnrolledIds = db.enrollments.filter(e => e.courseId === course.id).map(e => Number(e.studentId));
+  const availableStudentIds = allEnrolledIds.filter(id => !studentsInGroups.includes(id) && Number(id) !== Number(currentUser.id));
+  const availableStudents = availableStudentIds.map(id => db.users.find(u => Number(u.id) === id)).filter(Boolean);
 
   const handleCreate = () => {
     if (!groupName.trim()) return;
@@ -678,23 +687,79 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
                   {isLead ? (
                      <Crown className="w-4 h-4 text-warning" />
                   ) : currentUserIsLead ? (
-                     <button 
-                        onClick={() => changeGroupLeader(myGroup.id, id)}
-                        className="text-[10px] bg-white/10 hover:bg-warning/20 text-textMuted hover:text-warning px-2 py-1 rounded-md transition-all border border-transparent hover:border-warning/30 font-semibold"
-                     >
-                       Make Leader
-                     </button>
+                    <div className="flex items-center gap-1">
+                       <button 
+                          onClick={() => changeGroupLeader(myGroup.id, id)}
+                          className="text-[10px] bg-white/10 hover:bg-warning/20 text-textMuted hover:text-warning px-2 py-1 rounded-md transition-all border border-transparent hover:border-warning/30 font-semibold"
+                       >
+                         Make Leader
+                       </button>
+                       <button 
+                          onClick={() => removeGroupMember(myGroup.id, id)}
+                          className="text-[10px] bg-white/10 hover:bg-danger/20 text-textMuted hover:text-danger px-2 py-1 rounded-md transition-all border border-transparent hover:border-danger/30 font-semibold flex items-center justify-center p-1"
+                          title="Remove Member"
+                       >
+                         <X className="w-3.5 h-3.5" />
+                       </button>
+                    </div>
                   ) : null}
                 </div>
               ) : null;
             })}
           </div>
-          <button
-            onClick={handleLeave}
-            className="btn text-xs flex items-center gap-1.5 text-danger hover:bg-danger/10 border-danger/20"
-          >
-            <LeaveIcon className="w-3.5 h-3.5" /> Leave Group
-          </button>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleLeave}
+              className="btn text-xs flex items-center gap-1.5 text-danger hover:bg-danger/10 border-danger/20 flex-1 justify-center py-2"
+            >
+              <LeaveIcon className="w-3.5 h-3.5" /> Leave
+            </button>
+            {String(myGroup.leaderId) === String(currentUser.id) && (
+              <button
+                onClick={() => setMode("addMember")}
+                className="btn text-xs flex items-center gap-1.5 text-primary hover:bg-primary/10 border-primary/20 flex-1 justify-center py-2"
+              >
+                <UserPlus className="w-3.5 h-3.5" /> Add Member
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add member list */}
+      {mode === "addMember" && myGroup && (
+        <div className="animate-fadeIn">
+          {availableStudents.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-sm text-textMuted">No unassigned students available.</p>
+            </div>
+          ) : (
+            <div className="space-y-2 mb-3 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+              {availableStudents.map((s) => (
+                <div key={s.id} className="flex items-center justify-between bg-black/20 px-3 py-2.5 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                      {s.avatar}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{s.name}</p>
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-primary text-xs px-3 py-1.5"
+                    onClick={() => {
+                        addGroupMember(myGroup.id, s.id);
+                        setMode("view");
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button className="btn w-full mt-2 text-xs hover:bg-white/5 border-none text-textMuted"
+            onClick={() => setMode("view")}>← Back</button>
         </div>
       )}
 

@@ -418,6 +418,33 @@ function App() {
     }));
   };
 
+  const removeGroupMember = (groupId, memberIdToRemove) => {
+    setDb((prev) => ({
+      ...prev,
+      groups: (prev.groups || []).map((g) => {
+        if (g.id === groupId) {
+          return {
+            ...g,
+            memberIds: g.memberIds.filter((id) => String(id) !== String(memberIdToRemove)),
+          };
+        }
+        return g;
+      }),
+    }));
+  };
+
+  const addGroupMember = (groupId, studentId) => {
+    setDb((prev) => ({
+      ...prev,
+      groups: (prev.groups || []).map((g) => {
+        if (g.id === groupId && !g.memberIds.includes(studentId) && !g.memberIds.includes(String(studentId))) {
+          return { ...g, memberIds: [...g.memberIds, studentId] };
+        }
+        return g;
+      }),
+    }));
+  };
+
   // ----------------------------------------------------------------
   // RENDER
   // ----------------------------------------------------------------
@@ -513,6 +540,8 @@ function App() {
               joinGroup={joinGroup}
               leaveGroup={leaveGroup}
               changeGroupLeader={changeGroupLeader}
+              removeGroupMember={removeGroupMember}
+              addGroupMember={addGroupMember}
               notifications={db.notifications.filter(
                 (n) => String(n.userId) === String(currentUser.id)
               )}
