@@ -1,367 +1,768 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  UploadCloud,
-  CheckCircle,
-  FileText,
-  Clock,
-  FileCheck,
-  Layout,
+  CheckCircle, Clock, FileText, UploadCloud, Users, AlertCircle,
+  BookOpen, X, FileCheck, Crown, UserPlus, LogOut as LeaveIcon,
+  ChevronRight, Bell, Star,
 } from "lucide-react";
+import CourseCard from "./CourseCard";
+import ProgressRing from "./ProgressRing";
 
+// ─────────────────────────────────────────────
+// STUDENT DASHBOARD
+// ─────────────────────────────────────────────
 export default function StudentDashboard({
-  db,
-  currentUser,
-  addSubmission,
+  db, currentUser, view, selectedCourse,
+  onNavigateToCourse, onNavigateToDashboard,
+  addSubmission, addGroupSubmission, createGroup, joinGroup, leaveGroup,
   notifications,
 }) {
-  const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [modalState, setModalState] = useState("none"); // 'none', 'confirm'
-  const [fileAttached, setFileAttached] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  // Student's enrolled courses
+  const enrolledCourseIds = db.enrollments
+    .filter((e) => String(e.studentId) === String(currentUser.id))
+    .map((e) => e.courseId);
+  const enrolledCourses = db.courses.filter((c) => enrolledCourseIds.includes(c.id));
 
-  const assignmentsWithStatus = db.assignments.map((a) => {
-    const sub = db.submissions.find(
-      (s) =>
-        String(s.assignmentId) === String(a.id) &&
-        String(s.studentId) === String(currentUser.id),
+  // ── Course List View ──────────────────────────────────────────
+  if (view === "dashboard") {
+    return (
+      <StudentCourseDashboard
+        enrolledCourses={enrolledCourses}
+        db={db}
+        currentUser={currentUser}
+        notifications={notifications}
+        onNavigateToCourse={onNavigateToCourse}
+      />
     );
-    const isOverdue =
-      new Date(a.dueDate).toISOString().split("T")[0] <
-      new Date().toISOString().split("T")[0];
-    const hasReminder = notifications?.some(
-      (n) => String(n.assignmentId) === String(a.id),
-    );
-    return {
-      ...a,
-      isSubmitted: !!sub,
-      grade: sub?.grade,
-      feedback: sub?.feedback,
-      isOverdue,
-      hasReminder,
-    };
-  });
+  }
 
-  const completedCount = assignmentsWithStatus.filter(
-    (a) => a.isSubmitted,
+  // ── Course Detail View ────────────────────────────────────────
+  if (view === "course" && selectedCourse) {
+    return (
+      <StudentCourseDetail
+        course={selectedCourse}
+        db={db}
+        currentUser={currentUser}
+        notifications={notifications}
+        addSubmission={addSubmission}
+        addGroupSubmission={addGroupSubmission}
+        createGroup={createGroup}
+        joinGroup={joinGroup}
+        leaveGroup={leaveGroup}
+      />
+    );
+  }
+
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// STUDENT: Course Dashboard (Screen 1)
+// ─────────────────────────────────────────────
+function StudentCourseDashboard({
+  enrolledCourses, db, currentUser, notifications, onNavigateToCourse,
+}) {
+  const totalAssignments = db.assignments.filter((a) =>
+    enrolledCourses.some((c) => c.id === a.courseId)
   ).length;
-  const totalCount = assignmentsWithStatus.length;
 
-  const handleInitiate = (assignment) => {
-    setSelectedAssignment(assignment);
-    setModalState("confirm");
+  const completedAssignments = db.submissions.filter(
+    (s) =>
+      String(s.studentId) === String(currentUser.id) &&
+      db.assignments
+        .filter((a) => enrolledCourses.some((c) => c.id === a.courseId))
+        .some((a) => String(a.id) === String(s.assignmentId))
+  ).length;
+
+  const totalPercent = totalAssignments === 0 ? 0
+    : Math.round((completedAssignments / totalAssignments) * 100);
+
+  return (
+    <main className="animate-fadeIn">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 animate-slideDown">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+            Welcome back, {currentUser.name.split(" ")[0]}! 👋
+          </h1>
+          <p className="text-textMuted text-sm">
+            {totalAssignments - completedAssignments > 0
+              ? `You have ${totalAssignments - completedAssignments} pending ${totalAssignments - completedAssignments === 1 ? "assignment" : "assignments"}.`
+              : "All caught up! Great work 🎉"}
+          </p>
+        </div>
+        <div className="glass-panel p-4 rounded-xl border-white/5 shrink-0 flex items-center gap-3">
+          <ProgressRing
+            percent={totalPercent}
+            size={52}
+            stroke={4}
+            colorClass="text-primary"
+            label="Overall Progress"
+            sublabel={`${completedAssignments}/${totalAssignments} done`}
+          />
+        </div>
+      </div>
+
+      {/* Urgent Reminders Banner */}
+      {notifications.length > 0 && (
+        <div className="mb-6 p-4 rounded-xl bg-danger/10 border border-danger/30 flex items-start gap-3 animate-slideDown">
+          <div className="relative shrink-0 mt-0.5">
+            <Bell className="w-5 h-5 text-danger" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-danger rounded-full animate-ping" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-danger mb-1">Urgent Reminders</p>
+            <p className="text-xs text-danger/80">
+              You have {notifications.length} pending reminder{notifications.length > 1 ? "s" : ""} from your professor. Check your assignments below.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Course Grid */}
+      <h2 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-3">
+        Your Courses ({enrolledCourses.length})
+      </h2>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {enrolledCourses.map((course, idx) => {
+          const courseAssignments = db.assignments.filter((a) => a.courseId === course.id);
+          const completed = db.submissions.filter(
+            (s) =>
+              String(s.studentId) === String(currentUser.id) &&
+              courseAssignments.some((a) => String(a.id) === String(s.assignmentId))
+          ).length;
+
+          return (
+            <div key={course.id} style={{ animationDelay: `${idx * 0.08}s` }}>
+              <CourseCard
+                course={course}
+                role="student"
+                totalAssignments={courseAssignments.length}
+                completedAssignments={completed}
+                onClick={() => onNavigateToCourse(course)}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </main>
+  );
+}
+
+// ─────────────────────────────────────────────
+// STUDENT: Course Detail (Screen 2)
+// ─────────────────────────────────────────────
+function StudentCourseDetail({
+  course, db, currentUser, notifications,
+  addSubmission, addGroupSubmission, createGroup, joinGroup, leaveGroup,
+}) {
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [modalState, setModalState] = useState("none"); // none | confirm | final
+  const [toastMsg, setToastMsg] = useState({ text: "", type: "success" });
+  const [showGroupPanel, setShowGroupPanel] = useState(false);
+
+  const courseAssignments = db.assignments.filter((a) => a.courseId === course.id);
+  const myGroup = (db.groups || []).find(
+    (g) =>
+      g.courseId === course.id &&
+      (g.memberIds.includes(currentUser.id) ||
+        g.memberIds.includes(String(currentUser.id)))
+  );
+
+  const getSubmission = (assignmentId) =>
+    db.submissions.find(
+      (s) =>
+        String(s.studentId) === String(currentUser.id) &&
+        String(s.assignmentId) === String(assignmentId)
+    );
+
+  const completedCount = courseAssignments.filter((a) => !!getSubmission(a.id)).length;
+
+  const showToast = (text, type = "success") => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg({ text: "", type: "success" }), 3200);
   };
 
-  const handleNextStep = () => {
-    setModalState("final");
+  const handleAcknowledge = (assignment) => {
+    if (assignment.submissionType === "group") {
+      setSelectedAssignment(assignment);
+      setModalState("group-confirm");
+    } else {
+      setSelectedAssignment(assignment);
+      setModalState("confirm");
+    }
   };
 
-  const handleConfirm = () => {
+  const confirmIndividual = () => {
     addSubmission(selectedAssignment.id);
+    showToast(`"${selectedAssignment.title}" acknowledged!`);
     setModalState("none");
-    setTimeout(() => {
-      setSelectedAssignment(null);
-      setFileAttached(false);
-    }, 300);
-
-    // Show success popup notification
-    setToastMessage(`"${selectedAssignment.title}" submitted successfully!`);
-    setTimeout(() => setToastMessage(""), 3500);
+    setSelectedAssignment(null);
   };
 
-  const handleClose = () => {
+  const confirmGroup = () => {
+    addGroupSubmission(selectedAssignment.id, course.id);
+    showToast(`Group acknowledged "${selectedAssignment.title}" for all members!`);
     setModalState("none");
-    setTimeout(() => {
-      setSelectedAssignment(null);
-      setFileAttached(false);
-    }, 300); // cleanup after animation
+    setSelectedAssignment(null);
   };
 
   return (
-    <main className="animate-fadeIn w-full max-w-full overflow-x-hidden">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-6 animate-slideDown">
-        <div className="w-full sm:w-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-white">
-            Welcome back, {currentUser.name.split(" ")[0]}!
-          </h1>
-          <p className="text-textMuted text-xs sm:text-sm md:text-base">
-            You have{" "}
-            <span className="text-primary font-bold">
-              {totalCount - completedCount} tasks
-            </span>{" "}
-            remaining.
+    <main className="animate-fadeIn">
+      {/* Course Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <BookOpen className="w-4 h-4 text-primary" />
+            <span className="text-xs text-textMuted font-semibold uppercase tracking-wide">{course.code}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">{course.name}</h1>
+          <p className="text-textMuted text-sm mt-1">
+            {completedCount}/{courseAssignments.length} assignments completed
           </p>
         </div>
-        <div className="glass-panel p-3 sm:p-4 rounded-xl shadow-lg border-white/10 flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-4 border-surface/50 relative flex items-center justify-center">
-            <div
-              className="absolute inset-0 border-4 border-primary rounded-full"
-              style={{
-                clipPath: `inset(0 ${100 - (completedCount / (totalCount || 1)) * 100}% 0 0)`,
-              }}
-            ></div>
-            <span className="text-[10px] sm:text-xs font-bold">
-              {Math.round((completedCount / (totalCount || 1)) * 100)}%
-            </span>
-          </div>
-          <div>
-            <div className="text-xs sm:text-sm font-bold text-white leading-tight">
-              Course Progress
-            </div>
-            <div className="text-[10px] sm:text-xs text-textMuted">
-              {completedCount} of {totalCount} Completed
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowGroupPanel(!showGroupPanel)}
+            className={`btn flex items-center gap-2 text-sm ${showGroupPanel ? "bg-primary text-white border-primary" : "hover:bg-white/10"}`}
+          >
+            <Users className="w-4 h-4" /> My Group
+          </button>
+          <ProgressRing
+            percent={courseAssignments.length === 0 ? 0 : Math.round((completedCount / courseAssignments.length) * 100)}
+            size={44}
+            stroke={3.5}
+            colorClass="text-primary"
+          />
         </div>
       </div>
 
+      {/* Group Panel (collapsible) */}
+      {showGroupPanel && (
+        <GroupPanel
+          course={course}
+          db={db}
+          currentUser={currentUser}
+          myGroup={myGroup}
+          createGroup={createGroup}
+          joinGroup={joinGroup}
+          leaveGroup={leaveGroup}
+          onClose={() => setShowGroupPanel(false)}
+        />
+      )}
+
+      {/* Assignment Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-        {assignmentsWithStatus.map((assignment, idx) => (
-          <div
-            key={assignment.id}
-            className="glass-panel p-4 sm:p-6 rounded-xl animate-slideUp flex flex-col border-white/5 hover:border-white/20 transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-cardHover relative overflow-hidden"
-            style={{ animationDelay: `${idx * 0.1}s` }}
-          >
-            {/* Ambient Background Glow Effect */}
-            <div
-              className="absolute top-[-50px] right-[-50px] w-64 h-64 opacity-30 pointer-events-none transition-colors duration-700 z-0"
-              style={{
-                background: `radial-gradient(circle, ${assignment.isSubmitted ? "#10b981" : assignment.hasReminder ? "#ef4444" : "#8b5cf6"} 0%, transparent 70%)`,
-              }}
-            ></div>
+        {courseAssignments.map((assignment, idx) => {
+          const sub = getSubmission(assignment.id);
+          const isOverdue = new Date(assignment.dueDate) < new Date();
+          const hasReminder = notifications?.some(
+            (n) => String(n.assignmentId) === String(assignment.id)
+          );
 
-            {/* Urgent Reminder Badge */}
-            {assignment.hasReminder && !assignment.isSubmitted && (
-              <div className="absolute bottom-24 right-6 animate-bounce z-20">
-                <div className="bg-danger text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-danger/40 flex items-center gap-1 border border-white/20">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                  </span>
-                  URGENT REMINDER
-                </div>
-              </div>
-            )}
-            <div className="flex flex-wrap justify-between items-start mb-4 relative z-10 gap-2">
-              <span
-                className={`status-badge flex items-center gap-1 ${
-                  assignment.isSubmitted
-                    ? "status-submitted"
-                    : assignment.isOverdue
-                      ? "bg-danger/10 text-danger border-danger/20"
-                      : "status-pending"
-                }`}
-              >
-                {assignment.isSubmitted ? (
-                  <>
-                    <CheckCircle className="w-3.5 h-3.5" /> Submitted
-                  </>
-                ) : assignment.isOverdue ? (
-                  "Deadline Passed"
-                ) : (
-                  "Pending"
-                )}
-              </span>
-              <span
-                className={`text-xs flex items-center gap-1 font-medium bg-black/20 px-2 py-1 rounded-md ${assignment.isOverdue && !assignment.isSubmitted ? "text-danger" : "text-textMuted"}`}
-              >
-                <Clock className="w-3.5 h-3.5" />{" "}
-                {new Date(assignment.dueDate).toLocaleDateString()}
-              </span>
+          // Group-specific logic
+          const isGroupAssignment = assignment.submissionType === "group";
+          const isLeader = myGroup?.leaderId === currentUser.id || myGroup?.leaderId === String(currentUser.id);
+          const groupSub = isGroupAssignment && myGroup
+            ? db.submissions.find(
+                (s) =>
+                  String(s.assignmentId) === String(assignment.id) &&
+                  (myGroup.memberIds.includes(Number(s.studentId)))
+              )
+            : null;
+
+          return (
+            <AssignmentCard
+              key={assignment.id}
+              assignment={assignment}
+              submission={sub || groupSub}
+              isOverdue={isOverdue}
+              hasReminder={hasReminder}
+              isGroupAssignment={isGroupAssignment}
+              myGroup={myGroup}
+              isLeader={isLeader}
+              currentUser={currentUser}
+              db={db}
+              idx={idx}
+              onAcknowledge={() => handleAcknowledge(assignment)}
+            />
+          );
+        })}
+
+        {courseAssignments.length === 0 && (
+          <div className="col-span-full py-16 text-center animate-fadeIn">
+            <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10">
+              <Star className="w-8 h-8 text-textMuted/40" />
             </div>
-
-            <h3 className="text-lg sm:text-xl font-bold mb-2 text-white break-words">
-              {assignment.title}
-            </h3>
-            <p className="text-sm text-textMuted mb-4 flex-grow">
-              {assignment.description}
-            </p>
-
-            {/* Instructor Feedback Section */}
-            {assignment.grade && (
-              <div className="mb-5 p-4 rounded-xl bg-success/10 border border-success/20 animate-fadeIn relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-2 opacity-20">
-                  <FileCheck className="w-8 h-8 text-success" />
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-success px-2 py-0.5 bg-success/20 rounded">
-                    Graded: {assignment.grade}
-                  </span>
-                </div>
-                {assignment.feedback && (
-                  <p className="text-xs text-white/80 leading-relaxed italic">
-                    <span className="font-bold not-italic text-success">
-                      Feedback:
-                    </span>{" "}
-                    "{assignment.feedback}"
-                  </p>
-                )}
-              </div>
-            )}
-
-            {assignment.driveLink && (
-              <a
-                href={assignment.driveLink}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-primary hover:text-primaryHover transition-colors inline-flex items-center gap-1 mb-5 max-w-full font-medium bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/20 break-words"
-              >
-                <FileText className="w-4 h-4" /> Supporting Materials
-              </a>
-            )}
-
-            <div className="mt-auto pt-4 border-t border-white/10 relative z-10">
-              {assignment.isSubmitted ? (
-                assignment.isOverdue ? (
-                  <button
-                    className="btn w-full btn-success flex justify-center items-center gap-2 cursor-not-allowed opacity-70"
-                    disabled
-                    title="Deadline passed, cannot edit"
-                  >
-                    <CheckCircle className="w-4 h-4" /> Submitted (Locked)
-                  </button>
-                ) : (
-                  <button
-                    className="btn w-full bg-primary/20 text-primary border-primary/30 hover:bg-primary/30 flex justify-center items-center gap-2"
-                    onClick={() => handleInitiate(assignment)}
-                  >
-                    <UploadCloud className="w-4 h-4" /> Edit Submission
-                  </button>
-                )
-              ) : assignment.isOverdue ? (
-                <button
-                  className="btn w-full bg-danger/10 text-danger border-danger/20 flex justify-center items-center gap-2 cursor-not-allowed opacity-80"
-                  disabled
-                >
-                  <Clock className="w-4 h-4" /> Deadline Passed
-                </button>
-              ) : (
-                <button
-                  className="btn btn-primary w-full flex justify-center items-center gap-2"
-                  onClick={() => handleInitiate(assignment)}
-                >
-                  <UploadCloud className="w-5 h-5" /> Submit Work
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-        {totalCount === 0 && (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center animate-fadeIn">
-            <div className="w-20 h-20 bg-surface rounded-3xl flex items-center justify-center mb-6 border border-white/10 shadow-glow">
-              <Layout className="w-10 h-10 text-textMuted/50" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">
-              Everything's Clear!
-            </h3>
-            <p className="text-textMuted max-w-xs">
-              No assignments have been posted yet. Enjoy your free time or check
-              back later.
-            </p>
+            <p className="text-textMuted">No assignments posted yet. Check back soon!</p>
           </div>
         )}
       </div>
 
-      {/* Double Verification Modals - Rendered via Portal */}
-      {modalState !== "none" &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
-            {modalState === "confirm" && selectedAssignment && (
-              <div className="glass-panel w-full max-w-md rounded-2xl p-6 sm:p-8 text-center animate-modalIn shadow-4xl border-white/10 relative">
-                <div className="w-16 h-16 bg-surface rounded-full flex justify-center items-center mx-auto mb-5 border border-primary/50 shadow-glow">
-                  <UploadCloud className="w-8 h-8 text-primary" />
-                </div>
-                <h2 className="text-xl sm:text-2xl font-bold mb-3 text-white">
-                  Upload Submission
-                </h2>
-                <p className="text-textMuted mb-6 text-xs sm:text-sm leading-relaxed">
-                  Step 1 of 2: Please attach your completed assignment for{" "}
-                  <strong className="text-white">
-                    "{selectedAssignment.title}"
-                  </strong>
-                  .
-                </p>
+      {/* ── MODALS ──────────────────────────────────────────────── */}
 
-                {/* File Attachment UI */}
-                <div className="mb-6 text-left bg-black/20 p-4 rounded-xl border border-white/5">
-                  <label className="block text-xs font-medium mb-2 text-textMuted">
-                    Choose File
-                  </label>
-                  <input
-                    type="file"
-                    onChange={(e) => setFileAttached(e.target.files.length > 0)}
-                    className="block w-full text-xs text-textMuted file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] sm:text-xs file:font-semibold file:bg-primary/20 file:text-primary file:transition-all hover:file:bg-primary hover:file:text-white file:cursor-pointer cursor-pointer"
-                  />
-                </div>
+      {/* Individual Confirm Modal */}
+      {modalState === "confirm" && selectedAssignment && createPortal(
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
+          <div className="glass-panel w-full max-w-sm rounded-2xl p-6 text-center animate-modalIn border-white/10">
+            <div className="w-14 h-14 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/30">
+              <CheckCircle className="w-7 h-7 text-primary" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Confirm Acknowledgment</h2>
+            <p className="text-textMuted text-sm mb-1">You are confirming submission for:</p>
+            <p className="text-white font-semibold text-sm mb-5">"{selectedAssignment.title}"</p>
+            <p className="text-xs text-textMuted mb-5 bg-black/20 p-3 rounded-xl border border-white/5">
+              By clicking <strong className="text-white">Yes, I have submitted</strong>, you confirm that you have uploaded your work via the provided OneDrive link.
+              <br /><br />
+              <span className="text-primary font-medium">Timestamp will be recorded: {new Date().toLocaleString()}</span>
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                className="btn btn-primary w-full py-3 font-bold"
+                onClick={confirmIndividual}
+              >
+                ✅ Yes, I have submitted
+              </button>
+              <button
+                className="btn w-full text-textMuted hover:text-white hover:bg-white/5 border-none"
+                onClick={() => { setModalState("none"); setSelectedAssignment(null); }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
-                <div className="flex justify-center gap-3">
-                  <button
-                    className="btn flex-1 py-3 text-xs sm:text-sm hover:bg-white/10"
-                    onClick={handleClose}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className={`btn flex-1 py-3 text-xs sm:text-sm ${fileAttached ? "btn-primary shadow-primaryGlow" : "bg-surfaceActive text-textMuted cursor-not-allowed"}`}
-                    disabled={!fileAttached}
-                    onClick={handleNextStep}
-                  >
-                    Submit
-                  </button>
-                </div>
-                {!fileAttached && (
-                  <p className="text-[10px] text-warning mt-3">
-                    File selection required to proceed
-                  </p>
-                )}
+      {/* Group Confirm Modal */}
+      {modalState === "group-confirm" && selectedAssignment && createPortal(
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center z-[9999] p-4">
+          <div className="glass-panel w-full max-w-sm rounded-2xl p-6 text-center animate-modalIn border-warning/20">
+            <div className="w-14 h-14 bg-warning/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-warning/30">
+              <Users className="w-7 h-7 text-warning" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Group Acknowledgment</h2>
+            <p className="text-textMuted text-sm mb-4">
+              As group leader of <strong className="text-white">{myGroup?.name}</strong>, you are acknowledging submission for all {myGroup?.memberIds?.length} members.
+            </p>
+            <div className="bg-black/20 rounded-xl p-3 mb-5 border border-white/5 text-left">
+              <p className="text-xs text-textMuted mb-2 uppercase tracking-wide font-bold">Members covered:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {myGroup?.memberIds.map((id) => {
+                  const member = db.users.find((u) => String(u.id) === String(id));
+                  return member ? (
+                    <span key={id} className="text-xs bg-white/10 text-white px-2 py-1 rounded-full">
+                      {member.name.split(" ")[0]}
+                    </span>
+                  ) : null;
+                })}
               </div>
-            )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                className="btn w-full py-3 font-bold bg-warning hover:bg-warning/80 text-black border-none"
+                onClick={confirmGroup}
+              >
+                ✅ Acknowledge for Group
+              </button>
+              <button
+                className="btn w-full text-textMuted hover:text-white hover:bg-white/5 border-none"
+                onClick={() => { setModalState("none"); setSelectedAssignment(null); }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
-            {modalState === "final" && selectedAssignment && (
-              <div className="glass-panel w-full max-w-sm rounded-2xl p-8 text-center animate-fadeIn shadow-4xl border-white/10 relative">
-                <div className="w-16 h-16 bg-surface rounded-full flex justify-center items-center mx-auto mb-5 border border-warning/50 shadow-glow">
-                  <CheckCircle className="w-8 h-8 text-warning" />
-                </div>
-                <h2 className="text-xl font-bold mb-3 text-white">
-                  Are you sure?
-                </h2>
-                <p className="text-textMuted mb-6 text-xs leading-relaxed">
-                  You are about to submit your work for{" "}
-                  <strong className="text-white">
-                    "{selectedAssignment.title}"
-                  </strong>
-                  . This action will mark the assignment as complete.
-                </p>
-
-                <div className="flex flex-col gap-3">
-                  <button
-                    className="btn btn-primary w-full py-3 shadow-glow"
-                    onClick={handleConfirm}
-                  >
-                    Yes, I'm Sure
-                  </button>
-                  <button
-                    className="btn w-full py-3 text-xs text-textMuted hover:text-white border-none"
-                    onClick={() => setModalState("confirm")}
-                  >
-                    Wait, Go Back
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>,
-          document.body,
-        )}
-
-      {/* Toast Notification Pop-up - Rendered via Portal */}
-      {toastMessage &&
-        createPortal(
-          <div className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-auto sm:right-6 bg-success/20 border border-success/50 text-success px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-glow animate-slideUp z-[9999] flex items-center gap-3 sm:max-w-md">
-            <FileCheck className="w-6 h-6" />
-            <span className="font-semibold break-words">{toastMessage}</span>
-          </div>,
-          document.body,
-        )}
+      {/* Toast */}
+      {toastMsg.text && createPortal(
+        <div className={`fixed bottom-5 right-5 left-5 sm:left-auto sm:max-w-sm px-5 py-3 rounded-xl shadow-lg animate-slideUp z-[9999] flex items-center gap-3 border ${
+          toastMsg.type === "warning"
+            ? "bg-warning/20 border-warning/40 text-warning"
+            : "bg-success/20 border-success/40 text-success"
+        }`}>
+          <FileCheck className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-semibold">{toastMsg.text}</span>
+        </div>,
+        document.body
+      )}
     </main>
+  );
+}
+
+// ─────────────────────────────────────────────
+// ASSIGNMENT CARD
+// ─────────────────────────────────────────────
+function AssignmentCard({
+  assignment, submission, isOverdue, hasReminder,
+  isGroupAssignment, myGroup, isLeader, currentUser, db, idx,
+  onAcknowledge,
+}) {
+  const isSubmitted = !!submission;
+
+  // Determine button state
+  const canLeaderAcknowledge = isGroupAssignment && isLeader && !isSubmitted && !isOverdue;
+  const memberWaiting = isGroupAssignment && myGroup && !isLeader && !isSubmitted;
+  const noGroup = isGroupAssignment && !myGroup;
+  const canIndividualAcknowledge = !isGroupAssignment && !isSubmitted && !isOverdue;
+
+  const dueDate = new Date(assignment.dueDate);
+  const formattedDue = dueDate.toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+  const formattedTime = dueDate.toLocaleTimeString("en-US", {
+    hour: "2-digit", minute: "2-digit",
+  });
+
+  return (
+    <div
+      className="glass-panel p-4 sm:p-5 rounded-2xl flex flex-col border-white/5 hover:border-white/20 transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-cardHover relative overflow-hidden animate-slideUp"
+      style={{ animationDelay: `${idx * 0.08}s` }}
+    >
+      {/* Ambient glow */}
+      <div
+        className="absolute top-[-40px] right-[-40px] w-48 h-48 opacity-25 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle, ${
+            isSubmitted ? "#10b981" : hasReminder ? "#ef4444" : "#8b5cf6"
+          } 0%, transparent 70%)`,
+        }}
+      />
+
+      {/* Urgent Badge */}
+      {hasReminder && !isSubmitted && (
+        <div className="absolute top-3 right-3 z-20">
+          <div className="bg-danger text-white text-[9px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 border border-white/20 shadow-lg shadow-danger/30">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+            </span>
+            REMINDER
+          </div>
+        </div>
+      )}
+
+      {/* Status + Due date */}
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-3 relative z-10">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`status-badge flex items-center gap-1 ${
+            isSubmitted ? "status-submitted" :
+            isOverdue ? "bg-danger/10 text-danger border-danger/20" :
+            "status-pending"
+          }`}>
+            {isSubmitted ? <><CheckCircle className="w-3 h-3" /> Acknowledged</> :
+             isOverdue ? "Deadline Passed" : "Pending"}
+          </span>
+          <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+            isGroupAssignment
+              ? "bg-warning/10 text-warning border-warning/20"
+              : "bg-primary/10 text-primary border-primary/20"
+          }`}>
+            {isGroupAssignment ? "Group" : "Individual"}
+          </span>
+        </div>
+        <div className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded-lg bg-black/20 ${
+          isOverdue && !isSubmitted ? "text-danger" : "text-textMuted"
+        }`}>
+          <Clock className="w-3 h-3" />
+          {formattedDue} · {formattedTime}
+        </div>
+      </div>
+
+      {/* Title & Description */}
+      <h3 className="text-base sm:text-lg font-bold text-white mb-1.5 relative z-10 leading-tight">
+        {assignment.title}
+      </h3>
+      <p className="text-xs sm:text-sm text-textMuted mb-4 flex-grow relative z-10 leading-relaxed">
+        {assignment.description}
+      </p>
+
+      {/* Grade + Feedback */}
+      {submission?.grade && (
+        <div className="mb-4 p-3 rounded-xl bg-success/10 border border-success/20 relative z-10 animate-fadeIn">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-success bg-success/20 px-2 py-0.5 rounded">
+              Grade: {submission.grade}
+            </span>
+          </div>
+          {submission.feedback && (
+            <p className="text-[11px] text-white/70 italic leading-relaxed">
+              "{submission.feedback}"
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Submission timestamp */}
+      {isSubmitted && (
+        <div className="mb-3 flex items-center gap-1.5 relative z-10">
+          <Clock className="w-3 h-3 text-success/70" />
+          <span className="text-[10px] text-success/70">
+            Acknowledged {new Date(submission.timestamp).toLocaleString()}
+            {submission.submittedBy && submission.submittedBy !== currentUser.id &&
+              ` · by ${db.users.find(u => String(u.id) === String(submission.submittedBy))?.name?.split(" ")[0] || "Leader"}`
+            }
+          </span>
+        </div>
+      )}
+
+      {/* OneDrive Link */}
+      {assignment.driveLink && (
+        <a
+          href={assignment.driveLink}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1.5 mb-4 font-medium bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/20 relative z-10 w-fit"
+        >
+          <FileText className="w-3.5 h-3.5" /> Open OneDrive Link
+        </a>
+      )}
+
+      {/* Group Info */}
+      {isGroupAssignment && myGroup && (
+        <div className="mb-3 relative z-10 bg-black/20 px-3 py-2 rounded-xl border border-white/5 flex items-center gap-2">
+          <Users className="w-3.5 h-3.5 text-warning shrink-0" />
+          <span className="text-xs text-textMuted">
+            {myGroup.name}
+            {isLeader && <span className="ml-1 text-warning font-bold">(You are Leader)</span>}
+          </span>
+        </div>
+      )}
+
+      {/* CTA Button */}
+      <div className="mt-auto pt-3 border-t border-white/10 relative z-10">
+        {/* Already submitted */}
+        {isSubmitted && (
+          <div className="btn w-full flex justify-center items-center gap-2 bg-success/10 text-success border-success/20 cursor-default">
+            <CheckCircle className="w-4 h-4" /> Acknowledged
+          </div>
+        )}
+
+        {/* Individual submit */}
+        {canIndividualAcknowledge && (
+          <button
+            className="btn btn-primary w-full flex justify-center items-center gap-2 font-bold"
+            onClick={onAcknowledge}
+          >
+            <UploadCloud className="w-4 h-4" /> Yes, I have submitted
+          </button>
+        )}
+
+        {/* Group leader acknowledge */}
+        {canLeaderAcknowledge && (
+          <button
+            className="btn w-full flex justify-center items-center gap-2 font-bold bg-warning hover:bg-warning/80 text-black border-none"
+            onClick={onAcknowledge}
+          >
+            <Crown className="w-4 h-4" /> Acknowledge for Group
+          </button>
+        )}
+
+        {/* Group member (not leader) — waiting */}
+        {memberWaiting && !isOverdue && (
+          <div className="text-center py-2 text-xs text-textMuted flex items-center justify-center gap-2">
+            <Clock className="w-3.5 h-3.5" />
+            Waiting for your group leader to acknowledge…
+          </div>
+        )}
+
+        {/* No group */}
+        {noGroup && !isSubmitted && !isOverdue && (
+          <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 text-xs text-warning flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>You are not part of any group. <strong>Form or join one</strong> using "My Group" to submit this assignment.</span>
+          </div>
+        )}
+
+        {/* Overdue + not submitted */}
+        {isOverdue && !isSubmitted && (
+          <button
+            className="btn w-full flex justify-center items-center gap-2 bg-danger/10 text-danger border-danger/20 cursor-not-allowed opacity-80"
+            disabled
+          >
+            <Clock className="w-4 h-4" /> Deadline Passed
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// GROUP PANEL
+// ─────────────────────────────────────────────
+function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, leaveGroup, onClose }) {
+  const [mode, setMode] = useState(myGroup ? "view" : "options"); // view | create | join | options
+  const [groupName, setGroupName] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const allCourseGroups = (db.groups || []).filter((g) => g.courseId === course.id);
+  const availableGroups = allCourseGroups.filter(
+    (g) =>
+      !g.memberIds.includes(currentUser.id) &&
+      !g.memberIds.includes(String(currentUser.id))
+  );
+
+  const handleCreate = () => {
+    if (!groupName.trim()) return;
+    setLoading(true);
+    setTimeout(() => {
+      createGroup(course.id, groupName.trim());
+      setLoading(false);
+      setMode("view");
+    }, 400);
+  };
+
+  const handleJoin = (groupId) => {
+    setLoading(true);
+    setTimeout(() => {
+      joinGroup(groupId);
+      setLoading(false);
+      setMode("view");
+    }, 400);
+  };
+
+  const handleLeave = () => {
+    leaveGroup(myGroup.id);
+    setMode("options");
+  };
+
+  return (
+    <div className="glass-panel rounded-2xl p-4 sm:p-5 mb-5 border-white/10 animate-slideDown relative">
+      <button
+        onClick={onClose}
+        className="absolute right-4 top-4 text-textMuted hover:text-white p-1"
+      >
+        <X className="w-4 h-4" />
+      </button>
+
+      <div className="flex items-center gap-2 mb-4">
+        <Users className="w-4 h-4 text-warning" />
+        <h3 className="font-bold text-white text-sm">Group Management — {course.name}</h3>
+      </div>
+
+      {/* Viewing own group */}
+      {myGroup && mode === "view" && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="font-semibold text-white">{myGroup.name}</p>
+              <p className="text-xs text-textMuted">{myGroup.memberIds.length} members</p>
+            </div>
+            {(String(myGroup.leaderId) === String(currentUser.id)) && (
+              <span className="text-[10px] bg-warning/15 text-warning border border-warning/30 px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                <Crown className="w-3 h-3" /> Leader
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {myGroup.memberIds.map((id) => {
+              const member = db.users.find((u) => String(u.id) === String(id));
+              const isLead = String(myGroup.leaderId) === String(id);
+              return member ? (
+                <div key={id} className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                  <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-[9px] font-bold text-white">
+                    {member.avatar}
+                  </div>
+                  <span className="text-xs text-white">{member.name.split(" ")[0]}</span>
+                  {isLead && <Crown className="w-3 h-3 text-warning" />}
+                </div>
+              ) : null;
+            })}
+          </div>
+          <button
+            onClick={handleLeave}
+            className="btn text-xs flex items-center gap-1.5 text-danger hover:bg-danger/10 border-danger/20"
+          >
+            <LeaveIcon className="w-3.5 h-3.5" /> Leave Group
+          </button>
+        </div>
+      )}
+
+      {/* No group — choose to create or join */}
+      {!myGroup && mode === "options" && (
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setMode("create")}
+            className="btn flex flex-col items-center gap-2 py-4 hover:border-primary/40 hover:bg-primary/10"
+          >
+            <UserPlus className="w-5 h-5 text-primary" />
+            <span className="text-xs">Create Group</span>
+          </button>
+          <button
+            onClick={() => setMode("join")}
+            className="btn flex flex-col items-center gap-2 py-4 hover:border-success/40 hover:bg-success/10"
+          >
+            <Users className="w-5 h-5 text-success" />
+            <span className="text-xs">Join Group</span>
+          </button>
+        </div>
+      )}
+
+      {/* Create group form */}
+      {mode === "create" && (
+        <div className="space-y-3">
+          <input
+            type="text"
+            className="input-field text-sm"
+            placeholder="Group name e.g. Team Alpha"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button className="btn flex-1 text-sm hover:bg-white/10"
+              onClick={() => setMode("options")}>Back</button>
+            <button
+              className="btn btn-primary flex-1 text-sm"
+              onClick={handleCreate}
+              disabled={!groupName.trim() || loading}
+            >
+              {loading ? "Creating…" : "Create & Lead"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Join group list */}
+      {mode === "join" && (
+        <div>
+          {availableGroups.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-sm text-textMuted">No groups available to join.</p>
+              <button className="text-xs text-primary mt-2 hover:underline" onClick={() => setMode("create")}>
+                Create your own group →
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {availableGroups.map((g) => {
+                const leader = db.users.find((u) => String(u.id) === String(g.leaderId));
+                return (
+                  <div key={g.id} className="flex items-center justify-between bg-black/20 px-3 py-2.5 rounded-xl border border-white/5">
+                    <div>
+                      <p className="text-sm font-medium text-white">{g.name}</p>
+                      <p className="text-[10px] text-textMuted">{g.memberIds.length} members · Led by {leader?.name?.split(" ")[0]}</p>
+                    </div>
+                    <button
+                      className="btn btn-primary text-xs px-3 py-1.5"
+                      onClick={() => handleJoin(g.id)}
+                      disabled={loading}
+                    >
+                      Join
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <button className="btn w-full mt-3 text-xs hover:bg-white/5 border-none text-textMuted"
+            onClick={() => setMode("options")}>← Back</button>
+        </div>
+      )}
+    </div>
   );
 }
