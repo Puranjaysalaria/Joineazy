@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   CheckCircle, Clock, FileText, UploadCloud, Users, AlertCircle,
   BookOpen, X, FileCheck, Crown, UserPlus, LogOut as LeaveIcon,
-  ChevronRight, Bell, Star,
+  ChevronRight, Bell, Star, Activity,
 } from "lucide-react";
 import CourseCard from "./CourseCard";
 import ProgressRing from "./ProgressRing";
@@ -147,31 +147,43 @@ function StudentCourseDashboard({
         </div>
       )}
 
-      {/* Course Grid */}
-      <h2 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-3">
-        Your Courses ({enrolledCourses.length})
-      </h2>
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {enrolledCourses.map((course, idx) => {
-          const courseAssignments = db.assignments.filter((a) => a.courseId === course.id);
-          const completed = db.submissions.filter(
-            (s) =>
-              String(s.studentId) === String(currentUser.id) &&
-              courseAssignments.some((a) => String(a.id) === String(s.assignmentId))
-          ).length;
+      {/* Main Content Area + Sidebar */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        
+        {/* Left Column: Courses list */}
+        <div className="flex-1 min-w-0">
+          {/* Course Grid */}
+          <h2 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-3">
+            Your Courses ({enrolledCourses.length})
+          </h2>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            {enrolledCourses.map((course, idx) => {
+              const courseAssignments = db.assignments.filter((a) => a.courseId === course.id);
+              const completed = db.submissions.filter(
+                (s) =>
+                  String(s.studentId) === String(currentUser.id) &&
+                  courseAssignments.some((a) => String(a.id) === String(s.assignmentId))
+              ).length;
 
-          return (
-            <div key={course.id} style={{ animationDelay: `${idx * 0.08}s` }}>
-              <CourseCard
-                course={course}
-                role="student"
-                totalAssignments={courseAssignments.length}
-                completedAssignments={completed}
-                onClick={() => onNavigateToCourse(course)}
-              />
-            </div>
-          );
-        })}
+              return (
+                <div key={course.id} style={{ animationDelay: `${idx * 0.08}s` }}>
+                  <CourseCard
+                    course={course}
+                    role="student"
+                    totalAssignments={courseAssignments.length}
+                    completedAssignments={completed}
+                    onClick={() => onNavigateToCourse(course)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Column: Activity Feed */}
+        <div className="lg:w-80 shrink-0">
+          <StudentActivityFeed db={db} currentUser={currentUser} />
+        </div>
       </div>
     </main>
   );
@@ -932,6 +944,106 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
           )}
           <button className="btn w-full mt-3 text-xs hover:bg-white/5 border-none text-textMuted"
             onClick={() => setMode("options")}>← Back</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// STUDENT ACTIVITY FEED WIDGET
+// ─────────────────────────────────────────────
+function StudentActivityFeed({ db, currentUser }) {
+  // 1. Gather all events
+  const events = [];
+
+  // A. Submissions made by the student
+  const studentSubs = (db.submissions || []).filter(s => String(s.studentId) === String(currentUser.id));
+  studentSubs.forEach(sub => {
+    const assignment = (db.assignments || []).find(a => String(a.id) === String(sub.assignmentId));
+    if (assignment) {
+      events.push({
+        id: `sub_${sub.assignmentId}_${sub.timestamp}`,
+        type: "submission",
+        title: `Submitted ${assignment.title}`,
+        desc: "Assignment acknowledged",
+        timestamp: new Date(sub.timestamp),
+        icon: <CheckCircle className="w-4 h-4 text-primary" />,
+        color: "bg-primary/10 border-primary/20 text-primary",
+      });
+      // also if graded
+      if (sub.grade && sub.reviewedAt) {
+        events.push({
+          id: `grade_${sub.assignmentId}_${sub.reviewedAt}`,
+          type: "grade",
+          title: `Grade received: ${assignment.title}`,
+          desc: `Grade: ${sub.grade} - ${sub.feedback || "Great job"}`,
+          timestamp: new Date(sub.reviewedAt),
+          icon: <Star className="w-4 h-4 text-success" />,
+          color: "bg-success/10 border-success/20 text-success",
+        });
+      }
+    }
+  });
+
+  // B. Group Creation / Joining
+  const myGroups = (db.groups || []).filter(g => g.memberIds.includes(currentUser.id) || g.memberIds.includes(String(currentUser.id)));
+  myGroups.forEach(g => {
+    events.push({
+      id: `group_${g.id}_${g.createdAt}`,
+      type: "group",
+      title: `Joined Group`,
+      desc: `You are now part of ${g.name}`,
+      timestamp: new Date(g.createdAt),
+      icon: <Users className="w-4 h-4 text-warning" />,
+      color: "bg-warning/10 border-warning/20 text-warning",
+    });
+  });
+
+  // Sort by latest first
+  events.sort((a, b) => b.timestamp - a.timestamp);
+  
+  // Take top 8
+  const displayedEvents = events.slice(0, 8);
+
+  return (
+    <div className="glass-panel p-5 rounded-2xl border border-white/5 animate-slideUp h-full">
+      <div className="flex items-center gap-2 mb-6">
+        <Activity className="w-5 h-5 text-primary" />
+        <h3 className="font-bold text-white text-base">Activity Feed</h3>
+      </div>
+      
+      {displayedEvents.length === 0 ? (
+        <div className="text-center py-6 text-sm text-textMuted">
+          No recent activity to show.
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {displayedEvents.map((ev, idx) => (
+            <div key={ev.id} className="flex gap-4 relative animate-fadeIn" style={{ animationDelay: `${idx * 0.15}s` }}>
+              {/* Line connector */}
+              {idx !== displayedEvents.length - 1 && (
+                <div className="absolute left-[15px] top-[34px] bottom-[-20px] w-[2px] bg-white/5" />
+              )}
+              
+              <div className={`w-8 h-8 rounded-full flex justify-center items-center shrink-0 border ${ev.color} z-10 bg-surface shadow-lg`}>
+                {ev.icon}
+              </div>
+              
+              <div className="pt-1.5 pb-2 min-w-0">
+                <p className="text-sm font-bold text-white/90 leading-tight mb-1">{ev.title}</p>
+                <div className="flex flex-col gap-1 text-[11px]">
+                   <span className="text-textMuted/90 tracking-wide">{ev.desc}</span>
+                   <span className="text-white/30 font-medium">
+                     {(new Date().getTime() - ev.timestamp.getTime()) < 86400000 
+                       ? ev.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                       : ev.timestamp.toLocaleDateString()
+                     }
+                   </span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
