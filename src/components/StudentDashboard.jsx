@@ -164,6 +164,20 @@ function StudentCourseDetail({
   const [modalState, setModalState] = useState("none"); // none | confirm | final
   const [toastMsg, setToastMsg] = useState({ text: "", type: "success" });
   const [showGroupPanel, setShowGroupPanel] = useState(false);
+  const [isClosingPanel, setIsClosingPanel] = useState(false);
+
+  const handleCloseGroupPanel = () => {
+    setIsClosingPanel(true);
+    setTimeout(() => {
+      setShowGroupPanel(false);
+      setIsClosingPanel(false);
+    }, 300);
+  };
+
+  const toggleGroupPanel = () => {
+    if (showGroupPanel) handleCloseGroupPanel();
+    else setShowGroupPanel(true);
+  };
 
   const courseAssignments = db.assignments.filter((a) => a.courseId === course.id);
   const myGroup = (db.groups || []).find(
@@ -227,8 +241,12 @@ function StudentCourseDetail({
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowGroupPanel(!showGroupPanel)}
-            className={`btn flex items-center gap-2 text-sm ${showGroupPanel ? "bg-primary text-white border-primary" : "hover:bg-white/10"}`}
+            onClick={toggleGroupPanel}
+            className={`btn flex items-center gap-2 text-sm transition-all duration-300 ${
+              showGroupPanel 
+              ? "bg-primary text-white border-primary shadow-[0_0_15px_rgba(111,97,235,0.4)]" 
+              : "hover:bg-white/10"
+            }`}
           >
             <Users className="w-4 h-4" /> My Group
           </button>
@@ -254,7 +272,9 @@ function StudentCourseDetail({
           changeGroupLeader={changeGroupLeader}
           removeGroupMember={removeGroupMember}
           addGroupMember={addGroupMember}
-          onClose={() => setShowGroupPanel(false)}
+          isClosing={isClosingPanel}
+          onClose={handleCloseGroupPanel}
+          showToast={showToast}
         />
       )}
 
@@ -602,10 +622,11 @@ function AssignmentCard({
 // ─────────────────────────────────────────────
 // GROUP PANEL
 // ─────────────────────────────────────────────
-function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, leaveGroup, changeGroupLeader, removeGroupMember, addGroupMember, onClose }) {
+function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, leaveGroup, changeGroupLeader, removeGroupMember, addGroupMember, isClosing, onClose, showToast }) {
   const [mode, setMode] = useState(myGroup ? "view" : "options"); // view | create | join | options | addMember
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
 
   const allCourseGroups = (db.groups || []).filter((g) => g.courseId === course.id);
   const availableGroups = allCourseGroups.filter(
@@ -623,8 +644,9 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
     if (!groupName.trim()) return;
     setLoading(true);
     setTimeout(() => {
-      createGroup(course.id, groupName.trim());
+      createGroup(course.id, groupName.trim(), currentUser.id);
       setLoading(false);
+      if (showToast) showToast(`Group "${groupName.trim()}" created!`);
       setMode("view");
     }, 400);
   };
@@ -644,7 +666,39 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-4 sm:p-5 mb-5 border-white/10 animate-slideDown relative">
+    <div className={`glass-panel rounded-2xl p-4 sm:p-5 mb-5 border-white/10 relative overflow-hidden ${isClosing ? "animate-slideUpOut" : "animate-slideDown"}`}>
+      
+      {/* Confirmation Overlay */}
+      {confirmState && (
+        <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl z-20 p-5 text-center animate-fadeIn">
+          <AlertCircle className="w-10 h-10 text-warning mb-3 opacity-90" />
+          <h3 className="text-white font-semibold text-lg mb-1">Are you sure?</h3>
+          <p className="text-sm text-textMuted mb-6 px-2">
+            {confirmState.type === "remove" 
+              ? `You are about to remove ${confirmState.name} from the group.` 
+              : `You are transferring leadership to ${confirmState.name}. You will become a regular member.`}
+          </p>
+          <div className="flex gap-3 w-full max-w-[200px]">
+            <button className="btn flex-1 bg-white/10 hover:bg-white/20 text-white text-xs py-2" onClick={() => setConfirmState(null)}>Cancel</button>
+            <button 
+              className={`btn flex-1 text-xs py-2 ${confirmState.type === "remove" ? "text-danger border-danger/50 hover:bg-danger/20" : "text-black bg-warning hover:bg-warning/90 border-none px-0"}`}
+              onClick={() => {
+                if (confirmState.type === "remove") {
+                  removeGroupMember(myGroup.id, confirmState.id);
+                  if (showToast) showToast(`Removed ${confirmState.name} from the group.`, "warning");
+                } else {
+                  changeGroupLeader(myGroup.id, confirmState.id);
+                  if (showToast) showToast(`Transferred leadership to ${confirmState.name}.`);
+                }
+                setConfirmState(null);
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      )}
+
       <button
         onClick={onClose}
         className="absolute right-4 top-4 text-textMuted hover:text-white p-1"
@@ -689,13 +743,13 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
                   ) : currentUserIsLead ? (
                     <div className="flex items-center gap-1">
                        <button 
-                          onClick={() => changeGroupLeader(myGroup.id, id)}
+                          onClick={() => setConfirmState({ type: "leader", id, name: member.name.split(" ")[0] })}
                           className="text-[10px] bg-white/10 hover:bg-warning/20 text-textMuted hover:text-warning px-2 py-1 rounded-md transition-all border border-transparent hover:border-warning/30 font-semibold"
                        >
                          Make Leader
                        </button>
                        <button 
-                          onClick={() => removeGroupMember(myGroup.id, id)}
+                          onClick={() => setConfirmState({ type: "remove", id, name: member.name.split(" ")[0] })}
                           className="text-[10px] bg-white/10 hover:bg-danger/20 text-textMuted hover:text-danger px-2 py-1 rounded-md transition-all border border-transparent hover:border-danger/30 font-semibold flex items-center justify-center p-1"
                           title="Remove Member"
                        >
@@ -749,6 +803,7 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
                     className="btn btn-primary text-xs px-3 py-1.5"
                     onClick={() => {
                         addGroupMember(myGroup.id, s.id);
+                        if (showToast) showToast(`Added ${s.name.split(" ")[0]} to the group.`);
                         setMode("view");
                     }}
                   >

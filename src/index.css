@@ -45,7 +45,7 @@
   .btn {
     @apply appearance-none border border-borderColor bg-surface text-textMain px-4 py-2 
            rounded-xl font-medium cursor-pointer transition-all duration-200 
-           hover:bg-surfaceHover hover:border-borderHighlight;
+           hover:bg-surfaceHover hover:border-borderHighlight active:scale-[0.97];
   }
   .btn-primary {
     @apply bg-primary text-white hover:bg-primaryHover border border-primary/50 
@@ -121,6 +121,7 @@
   /* ── Animations ────────────────────────────────── */
   .animate-slideDown { animation: slideDown 0.35s ease-out forwards; }
   .animate-slideUp   { animation: slideUp 0.35s ease-out forwards; }
+  .animate-slideUpOut { animation: slideUpOut 0.3s ease-in forwards; }
 
   @keyframes slideDown {
     from { opacity: 0; transform: translateY(-12px); }
@@ -129,6 +130,10 @@
   @keyframes slideUp {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideUpOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-12px); }
   }
 
   /* Shimmer skeleton */

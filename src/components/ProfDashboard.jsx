@@ -310,7 +310,7 @@ function ProfCourseDetail({
               return (
                 <div
                   key={assignment.id}
-                  className="glass-panel p-4 sm:p-5 rounded-2xl border-white/5 hover:border-white/15 transition-all duration-300 animate-slideUp"
+                  className="glass-panel p-4 sm:p-5 rounded-2xl border border-white/5 hover:border-white/15 transition-all duration-300 animate-slideUp hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.4)]"
                   style={{ animationDelay: `${idx * 0.06}s` }}
                 >
                   <div className="flex flex-col sm:flex-row gap-4">
@@ -407,7 +407,7 @@ function ProfCourseDetail({
             return (
               <div
                 key={student.id}
-                className="glass-panel rounded-2xl p-4 sm:p-5 border-white/5 animate-slideUp"
+                className="glass-panel rounded-2xl p-4 sm:p-5 border border-white/5 animate-slideUp hover:border-white/15 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.4)]"
                 style={{ animationDelay: `${idx * 0.05}s` }}
               >
                 <div className="flex items-center gap-3 mb-4">
@@ -523,7 +523,7 @@ function ProfCourseDetail({
               <div>
                 <label className="block text-sm font-medium mb-1.5 text-textMuted">Title *</label>
                 <input
-                  type="text" required className="input-field"
+                  type="text" required className="input-field focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300"
                   placeholder="e.g. UX Research Case Study"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -532,7 +532,7 @@ function ProfCourseDetail({
               <div>
                 <label className="block text-sm font-medium mb-1.5 text-textMuted">Description *</label>
                 <textarea
-                  required rows="3" className="input-field resize-none"
+                  required rows="3" className="input-field resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300"
                   placeholder="Describe the assignment requirements..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -542,7 +542,7 @@ function ProfCourseDetail({
                 <div>
                   <label className="block text-sm font-medium mb-1.5 text-textMuted">Due Date *</label>
                   <input
-                    type="date" required className="input-field"
+                    type="date" required className="input-field focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                   />
@@ -571,7 +571,7 @@ function ProfCourseDetail({
                   <Link className="w-3.5 h-3.5" /> OneDrive / Drive Link
                 </label>
                 <input
-                  type="url" className="input-field"
+                  type="url" className="input-field focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300"
                   placeholder="https://onedrive.live.com/..."
                   value={formData.driveLink}
                   onChange={(e) => setFormData({ ...formData, driveLink: e.target.value })}
