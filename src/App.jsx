@@ -409,6 +409,15 @@ function App() {
     });
   };
 
+  const changeGroupLeader = (groupId, newLeaderId) => {
+    setDb((prev) => ({
+      ...prev,
+      groups: (prev.groups || []).map((g) =>
+        g.id === groupId ? { ...g, leaderId: newLeaderId } : g
+      ),
+    }));
+  };
+
   // ----------------------------------------------------------------
   // RENDER
   // ----------------------------------------------------------------
@@ -503,6 +512,7 @@ function App() {
               createGroup={createGroup}
               joinGroup={joinGroup}
               leaveGroup={leaveGroup}
+              changeGroupLeader={changeGroupLeader}
               notifications={db.notifications.filter(
                 (n) => String(n.userId) === String(currentUser.id)
               )}

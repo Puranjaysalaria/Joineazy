@@ -15,7 +15,7 @@ export default function StudentDashboard({
   db, currentUser, view, selectedCourse,
   onNavigateToCourse, onNavigateToDashboard,
   addSubmission, addGroupSubmission, createGroup, joinGroup, leaveGroup,
-  notifications,
+  changeGroupLeader, notifications,
 }) {
   // Student's enrolled courses
   const enrolledCourseIds = db.enrollments
@@ -49,6 +49,7 @@ export default function StudentDashboard({
         createGroup={createGroup}
         joinGroup={joinGroup}
         leaveGroup={leaveGroup}
+        changeGroupLeader={changeGroupLeader}
       />
     );
   }
@@ -155,6 +156,7 @@ function StudentCourseDashboard({
 function StudentCourseDetail({
   course, db, currentUser, notifications,
   addSubmission, addGroupSubmission, createGroup, joinGroup, leaveGroup,
+  changeGroupLeader,
 }) {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [modalState, setModalState] = useState("none"); // none | confirm | final
@@ -247,6 +249,7 @@ function StudentCourseDetail({
           createGroup={createGroup}
           joinGroup={joinGroup}
           leaveGroup={leaveGroup}
+          changeGroupLeader={changeGroupLeader}
           onClose={() => setShowGroupPanel(false)}
         />
       )}
@@ -595,7 +598,7 @@ function AssignmentCard({
 // ─────────────────────────────────────────────
 // GROUP PANEL
 // ─────────────────────────────────────────────
-function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, leaveGroup, onClose }) {
+function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, leaveGroup, changeGroupLeader, onClose }) {
   const [mode, setMode] = useState(myGroup ? "view" : "options"); // view | create | join | options
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -659,17 +662,29 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
               </span>
             )}
           </div>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-col gap-2 mb-4">
             {myGroup.memberIds.map((id) => {
               const member = db.users.find((u) => String(u.id) === String(id));
               const isLead = String(myGroup.leaderId) === String(id);
+              const currentUserIsLead = String(myGroup.leaderId) === String(currentUser.id);
               return member ? (
-                <div key={id} className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                  <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-[9px] font-bold text-white">
-                    {member.avatar}
+                <div key={id} className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-full border border-white/10">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                      {member.avatar}
+                    </div>
+                    <span className="text-sm text-white">{member.name.split(" ")[0]}</span>
                   </div>
-                  <span className="text-xs text-white">{member.name.split(" ")[0]}</span>
-                  {isLead && <Crown className="w-3 h-3 text-warning" />}
+                  {isLead ? (
+                     <Crown className="w-4 h-4 text-warning" />
+                  ) : currentUserIsLead ? (
+                     <button 
+                        onClick={() => changeGroupLeader(myGroup.id, id)}
+                        className="text-[10px] bg-white/10 hover:bg-warning/20 text-textMuted hover:text-warning px-2 py-1 rounded-md transition-all border border-transparent hover:border-warning/30 font-semibold"
+                     >
+                       Make Leader
+                     </button>
+                  ) : null}
                 </div>
               ) : null;
             })}
