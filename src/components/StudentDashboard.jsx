@@ -108,16 +108,41 @@ function StudentCourseDashboard({
 
       {/* Urgent Reminders Banner */}
       {notifications.length > 0 && (
-        <div className="mb-6 p-4 rounded-xl bg-danger/10 border border-danger/30 flex items-start gap-3 animate-slideDown">
-          <div className="relative shrink-0 mt-0.5">
-            <Bell className="w-5 h-5 text-danger" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-danger rounded-full animate-ping" />
+        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-danger/10 border border-danger/30 flex flex-col gap-4 animate-slideDown shadow-lg">
+          <div className="flex items-start gap-4">
+            <div className="relative shrink-0 p-2.5 bg-danger/20 rounded-xl border border-danger/30">
+              <Bell className="w-6 h-6 text-danger" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-danger rounded-full animate-ping shadow-[0_0_10px_rgba(255,0,0,0.8)]" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-danger rounded-full border-2 border-surface" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-danger mb-1">Urgent Reminders</p>
+              <p className="text-sm text-danger/80">
+                You have {notifications.length} pending reminder{notifications.length > 1 ? "s" : ""} from your professor.
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold text-danger mb-1">Urgent Reminders</p>
-            <p className="text-xs text-danger/80">
-              You have {notifications.length} pending reminder{notifications.length > 1 ? "s" : ""} from your professor. Check your assignments below.
-            </p>
+          <div className="flex flex-col gap-2 mt-1 sm:pl-14">
+            {notifications.map((notif, idx) => {
+               const assignment = db.assignments.find(a => String(a.id) === String(notif.assignmentId));
+               if (!assignment) return null;
+               const course = enrolledCourses.find(c => c.id === assignment.courseId);
+               
+               return (
+                 <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-danger/5 hover:bg-danger/10 p-3 sm:px-4 rounded-xl border border-danger/20 transition-colors">
+                   <div className="min-w-0">
+                     <p className="text-sm font-semibold text-danger/90 truncate">{assignment.title}</p>
+                     <p className="text-xs text-danger/70 mt-0.5">{course?.code} · {course?.name}</p>
+                   </div>
+                   <button 
+                     onClick={() => course && onNavigateToCourse(course)}
+                     className="text-xs font-bold px-4 py-2 bg-danger/20 text-danger border border-danger/30 hover:bg-danger hover:text-white hover:border-danger hover:shadow-cardHover rounded-lg transition-all whitespace-nowrap self-start sm:self-auto flex items-center gap-1 shrink-0"
+                   >
+                     View Assignment
+                   </button>
+                 </div>
+               );
+            })}
           </div>
         </div>
       )}
@@ -661,8 +686,7 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
   };
 
   const handleLeave = () => {
-    leaveGroup(myGroup.id);
-    setMode("options");
+    setConfirmState({ type: "leave", name: "" });
   };
 
   return (
@@ -676,16 +700,28 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
           <p className="text-sm text-textMuted mb-6 px-2">
             {confirmState.type === "remove" 
               ? `You are about to remove ${confirmState.name} from the group.` 
+              : confirmState.type === "leave"
+              ? "You are about to leave this group. You will lose access to its submissions."
+              : confirmState.type === "join"
+              ? `Are you sure you want to join "${confirmState.name}"?`
               : `You are transferring leadership to ${confirmState.name}. You will become a regular member.`}
           </p>
           <div className="flex gap-3 w-full max-w-[200px]">
             <button className="btn flex-1 bg-white/10 hover:bg-white/20 text-white text-xs py-2" onClick={() => setConfirmState(null)}>Cancel</button>
             <button 
-              className={`btn flex-1 text-xs py-2 ${confirmState.type === "remove" ? "text-danger border-danger/50 hover:bg-danger/20" : "text-black bg-warning hover:bg-warning/90 border-none px-0"}`}
+              className={`btn flex-1 text-xs py-2 ${(confirmState.type === "remove" || confirmState.type === "leave") ? "text-danger border-danger/50 hover:bg-danger/20" : confirmState.type === "join" ? "text-white bg-primary hover:bg-primary/90 border-none px-0" : "text-black bg-warning hover:bg-warning/90 border-none px-0"}`}
               onClick={() => {
                 if (confirmState.type === "remove") {
                   removeGroupMember(myGroup.id, confirmState.id);
                   if (showToast) showToast(`Removed ${confirmState.name} from the group.`, "warning");
+                } else if (confirmState.type === "leave") {
+                  leaveGroup(myGroup.id);
+                  if (showToast) showToast("You left the group.", "warning");
+                  setMode("options");
+                } else if (confirmState.type === "join") {
+                  joinGroup(confirmState.id);
+                  if (showToast) showToast(`Successfully joined ${confirmState.name}!`);
+                  setMode("view");
                 } else {
                   changeGroupLeader(myGroup.id, confirmState.id);
                   if (showToast) showToast(`Transferred leadership to ${confirmState.name}.`);
@@ -884,7 +920,7 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
                     </div>
                     <button
                       className="btn btn-primary text-xs px-3 py-1.5"
-                      onClick={() => handleJoin(g.id)}
+                      onClick={() => setConfirmState({ type: "join", id: g.id, name: g.name })}
                       disabled={loading}
                     >
                       Join

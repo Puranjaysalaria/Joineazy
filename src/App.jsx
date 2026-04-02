@@ -1,24 +1,25 @@
 import { useState, useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import Login from "./components/Login";
 import ProfDashboard from "./components/ProfDashboard";
 import StudentDashboard from "./components/StudentDashboard";
 import { Layers, LogOut, ChevronLeft } from "lucide-react";
 
 // ── Schema version: bump this whenever INITIAL_DB structure changes ──
-const DB_VERSION = "2.0.0";
+const DB_VERSION = "2.1.0";
 
 // ============================================================
 // INITIAL MOCK DATABASE
 // ============================================================
 const INITIAL_DB = {
   users: [
-    { id: 1, name: "Alex Carter", role: "student", avatar: "AC" },
-    { id: 2, name: "Jordan Smith", role: "student", avatar: "JS" },
-    { id: 3, name: "Taylor Doe", role: "student", avatar: "TD" },
-    { id: 4, name: "Morgan Lee", role: "student", avatar: "ML" },
-    { id: 5, name: "Casey Rivers", role: "student", avatar: "CR" },
-    { id: 6, name: "Peyton West", role: "student", avatar: "PW" },
-    { id: 100, name: "Prof. Anderson", role: "admin", avatar: "PA" },
+    { id: 1, name: "Alex Carter", role: "student", avatar: "AC", email: "alex@student.com", password: "password123" },
+    { id: 2, name: "Jordan Smith", role: "student", avatar: "JS", email: "jordan@student.com", password: "password123" },
+    { id: 3, name: "Taylor Doe", role: "student", avatar: "TD", email: "taylor@student.com", password: "password123" },
+    { id: 4, name: "Morgan Lee", role: "student", avatar: "ML", email: "morgan@student.com", password: "password123" },
+    { id: 5, name: "Casey Rivers", role: "student", avatar: "CR", email: "casey@student.com", password: "password123" },
+    { id: 6, name: "Peyton West", role: "student", avatar: "PW", email: "peyton@student.com", password: "password123" },
+    { id: 100, name: "Prof. Anderson", role: "admin", avatar: "PA", email: "admin@prof.com", password: "admin123" },
   ],
 
   courses: [
@@ -168,9 +169,10 @@ const INITIAL_DB = {
 // APP COMPONENT
 // ============================================================
 function App() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // SPA Router State
+  // SPA Router State inside dashboards
   const [view, setView] = useState("dashboard"); // 'dashboard' | 'course'
   const [selectedCourse, setSelectedCourse] = useState(null);
 
@@ -178,7 +180,6 @@ function App() {
     const savedVersion = localStorage.getItem("joineazy_db_version");
     const saved = localStorage.getItem("joineazy_db");
 
-    // If schema version changed or no saved data → always use fresh INITIAL_DB
     if (!saved || savedVersion !== DB_VERSION) {
       localStorage.removeItem("joineazy_db");
       localStorage.setItem("joineazy_db_version", DB_VERSION);
@@ -188,26 +189,88 @@ function App() {
     return JSON.parse(saved);
   });
 
+  // JWT Auth Simulation
+  const [currentUser, setCurrentUser] = useState(() => {
+    const token = localStorage.getItem("joineazy_jwt");
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return db.users.find(u => String(u.id) === String(payload.userId)) || null;
+      } catch (e) {
+        return null; // Invalid token
+      }
+    }
+    return null;
+  });
+
   useEffect(() => {
     localStorage.setItem("joineazy_db", JSON.stringify(db));
     localStorage.setItem("joineazy_db_version", DB_VERSION);
   }, [db]);
 
-  // Reset view on logout
-  const handleLogin = (role, userId = 1) => {
-    if (role === "admin") {
-      setCurrentUser(db.users.find((u) => u.role === "admin"));
+  // Keep mock JWT in sync
+  useEffect(() => {
+    if (!currentUser) {
+      localStorage.removeItem("joineazy_jwt");
     } else {
-      setCurrentUser(db.users.find((u) => u.id === userId));
+      const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+      const payload = btoa(JSON.stringify({ userId: currentUser.id, role: currentUser.role, exp: Date.now() + 86400000 }));
+      const signature = "mock-signature";
+      localStorage.setItem("joineazy_jwt", `${header}.${payload}.${signature}`);
     }
-    setView("dashboard");
-    setSelectedCourse(null);
+  }, [currentUser]);
+
+  // Handle manual navigation redirects purely based on authorization
+  useEffect(() => {
+    if (currentUser && (location.pathname === '/' || location.pathname === '/login')) {
+       navigate(currentUser.role === 'admin' ? '/professor' : '/student');
+    }
+  }, [currentUser, location, navigate]);
+
+  const loginUser = (email, password) => {
+    const user = db.users.find(u => u.email === email && u.password === password);
+    if (!user) throw new Error("Invalid email or password.");
+    setCurrentUser(user);
+    navigate(user.role === 'admin' ? '/professor' : '/student');
+    return user;
+  };
+
+  const registerUser = (name, email, password, role) => {
+    if (db.users.find(u => u.email === email)) throw new Error("Email already registered.");
+    const newUser = {
+      id: Date.now(),
+      name,
+      email,
+      password,
+      role: role === "admin" ? "admin" : "student",
+      avatar: name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0,2) || "U"
+    };
+
+    // Auto-enroll new students in all active courses so their dashboard isn't empty!
+    let newEnrollments = db.enrollments;
+    let newCourses = db.courses;
+
+    if (newUser.role === "student") {
+      const defaultEnrollments = db.courses.map(c => ({ studentId: newUser.id, courseId: c.id }));
+      newEnrollments = [...db.enrollments, ...defaultEnrollments];
+    } else if (newUser.role === "admin") {
+      // If a new professor registers, map all existing courses to them for the demo!
+      newCourses = db.courses.map(c => ({ ...c, profId: newUser.id }));
+    }
+
+    const newDb = { ...db, users: [...db.users, newUser], enrollments: newEnrollments, courses: newCourses };
+    setDb(newDb);
+    
+    setCurrentUser(newUser);
+    navigate(newUser.role === 'admin' ? '/professor' : '/student');
+    return newUser;
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setView("dashboard");
     setSelectedCourse(null);
+    navigate('/login');
   };
 
   const navigateToCourse = (course) => {
@@ -448,6 +511,59 @@ function App() {
   // ----------------------------------------------------------------
   // RENDER
   // ----------------------------------------------------------------
+  // LAYOUT WRAPPER
+  // ----------------------------------------------------------------
+  const renderDashboardLayout = (requiredRole, children) => {
+    if (!currentUser) return <Navigate to="/login" />;
+    if (currentUser.role !== requiredRole) return <Navigate to={currentUser.role === 'admin' ? '/professor' : '/student'} />;
+    
+    return (
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 animate-fadeIn">
+        {/* ---- HEADER ---- */}
+        <header className="glass-panel rounded-2xl flex justify-between items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 mb-6 animate-slideDown shadow-lg">
+          <div className="flex items-center gap-3 min-w-0">
+            {view === "course" && (
+              <button onClick={navigateToDashboard} className="icon-btn mr-1 shrink-0" title="Back to Dashboard">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            <Layers className="text-primary w-5 h-5 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="font-bold text-base sm:text-lg tracking-tight truncate">
+                Eazy<span className="text-primary">Assign</span>
+              </h1>
+              {view === "course" && selectedCourse && (
+                <p className="text-[10px] text-textMuted truncate max-w-40 sm:max-w-64">
+                  {selectedCourse.code} · {selectedCourse.name}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-2 p-1 pr-3 rounded-full glass-panel-light overflow-hidden max-w-44">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 min-w-7 bg-primary text-white flex justify-center items-center rounded-full font-bold text-[10px] sm:text-xs shadow-glow shrink-0">
+                {currentUser.avatar}
+              </div>
+              <span className="text-xs sm:text-sm font-medium truncate">
+                {currentUser.name}
+              </span>
+              <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold shrink-0 ${currentUser.role === "admin" ? "bg-warning/20 text-warning border border-warning/20" : "bg-white/10 text-white/70 border border-white/5"}`}>
+                {currentUser.role === "admin" ? "Prof" : "Student"}
+              </span>
+            </div>
+            <button onClick={handleLogout} className="icon-btn" title="Logout">
+              <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
+        </header>
+
+        {/* ---- DASHBOARD CONTENT ---- */}
+        {children}
+      </div>
+    );
+  };
+
   return (
     <div className="relative h-dvh w-full max-w-full overflow-x-hidden overflow-y-auto bg-transparent">
       {/* Background Orbs */}
@@ -455,78 +571,15 @@ function App() {
       <div className="bg-orb orb-2"></div>
       <div className="bg-orb orb-3"></div>
 
-      {!currentUser ? (
-        <Login
-          onLogin={handleLogin}
-          users={db.users.filter((u) => u.role === "student")}
-        />
-      ) : (
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 animate-fadeIn">
-          {/* ---- HEADER ---- */}
-          <header className="glass-panel rounded-2xl flex justify-between items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 mb-6 animate-slideDown shadow-lg">
-            <div className="flex items-center gap-3 min-w-0">
-              {view === "course" && (
-                <button
-                  onClick={navigateToDashboard}
-                  className="icon-btn mr-1 shrink-0"
-                  title="Back to Dashboard"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-              )}
-              <Layers className="text-primary w-5 h-5 shrink-0" />
-              <div className="min-w-0">
-                <h1 className="font-bold text-base sm:text-lg tracking-tight truncate">
-                  Eazy<span className="text-primary">Assign</span>
-                </h1>
-                {view === "course" && selectedCourse && (
-                  <p className="text-[10px] text-textMuted truncate max-w-40 sm:max-w-64">
-                    {selectedCourse.code} · {selectedCourse.name}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <div className="flex items-center gap-2 p-1 pr-3 rounded-full glass-panel-light overflow-hidden max-w-44">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 min-w-7 bg-primary text-white flex justify-center items-center rounded-full font-bold text-[10px] sm:text-xs shadow-glow shrink-0">
-                  {currentUser.avatar}
-                </div>
-                <span className="text-xs sm:text-sm font-medium truncate">
-                  {currentUser.name.split(" ")[0]}
-                </span>
-                <span
-                  className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold shrink-0 ${
-                    currentUser.role === "admin"
-                      ? "bg-warning/20 text-warning border border-warning/20"
-                      : "bg-white/10 text-white/70 border border-white/5"
-                  }`}
-                >
-                  {currentUser.role === "admin" ? "Prof" : "Student"}
-                </span>
-              </div>
-              <button onClick={handleLogout} className="icon-btn" title="Logout">
-                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            </div>
-          </header>
-
-          {/* ---- DASHBOARD CONTENT ---- */}
-          {currentUser.role === "admin" ? (
-            <ProfDashboard
-              db={db}
-              currentUser={currentUser}
-              view={view}
-              selectedCourse={selectedCourse}
-              onNavigateToCourse={navigateToCourse}
-              onNavigateToDashboard={navigateToDashboard}
-              addAssignment={addAssignment}
-              updateAssignment={updateAssignment}
-              removeAssignment={removeAssignment}
-              updateSubmission={updateSubmission}
-              sendNotification={sendNotification}
-            />
-          ) : (
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" />} />
+        
+        <Route path="/login" element={
+          !currentUser ? <Login onLogin={loginUser} onRegister={registerUser} /> : <Navigate to={currentUser.role === 'admin' ? '/professor' : '/student'} />
+        } />
+        
+        <Route path="/student/*" element={
+          renderDashboardLayout("student", 
             <StudentDashboard
               db={db}
               currentUser={currentUser}
@@ -542,13 +595,29 @@ function App() {
               changeGroupLeader={changeGroupLeader}
               removeGroupMember={removeGroupMember}
               addGroupMember={addGroupMember}
-              notifications={db.notifications.filter(
-                (n) => String(n.userId) === String(currentUser.id)
-              )}
+              notifications={db.notifications.filter((n) => String(n.userId) === String(currentUser?.id))}
             />
-          )}
-        </div>
-      )}
+          )
+        } />
+        
+        <Route path="/professor/*" element={
+          renderDashboardLayout("admin", 
+            <ProfDashboard
+              db={db}
+              currentUser={currentUser}
+              view={view}
+              selectedCourse={selectedCourse}
+              onNavigateToCourse={navigateToCourse}
+              onNavigateToDashboard={navigateToDashboard}
+              addAssignment={addAssignment}
+              updateAssignment={updateAssignment}
+              removeAssignment={removeAssignment}
+              updateSubmission={updateSubmission}
+              sendNotification={sendNotification}
+            />
+          )
+        } />
+      </Routes>
     </div>
   );
 }
