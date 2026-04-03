@@ -15,7 +15,7 @@ export default function StudentDashboard({
   db, currentUser, view, selectedCourse,
   onNavigateToCourse, onNavigateToDashboard,
   addSubmission, addGroupSubmission, createGroup, joinGroup, leaveGroup,
-  changeGroupLeader, removeGroupMember, addGroupMember, notifications,
+  changeGroupLeader, removeGroupMember, addGroupMember, clearNotification, notifications,
 }) {
   // Student's enrolled courses
   const enrolledCourseIds = db.enrollments
@@ -32,6 +32,7 @@ export default function StudentDashboard({
         currentUser={currentUser}
         notifications={notifications}
         onNavigateToCourse={onNavigateToCourse}
+        clearNotification={clearNotification}
       />
     );
   }
@@ -63,7 +64,7 @@ export default function StudentDashboard({
 // STUDENT: Course Dashboard (Screen 1)
 // ─────────────────────────────────────────────
 function StudentCourseDashboard({
-  enrolledCourses, db, currentUser, notifications, onNavigateToCourse,
+  enrolledCourses, db, currentUser, notifications, onNavigateToCourse, clearNotification
 }) {
   const totalAssignments = db.assignments.filter((a) =>
     enrolledCourses.some((c) => c.id === a.courseId)
@@ -124,21 +125,42 @@ function StudentCourseDashboard({
           </div>
           <div className="flex flex-col gap-2 mt-1 sm:pl-14">
             {notifications.map((notif, idx) => {
-               const assignment = db.assignments.find(a => String(a.id) === String(notif.assignmentId));
-               if (!assignment) return null;
-               const course = enrolledCourses.find(c => c.id === assignment.courseId);
+               // Handle different notification types
+               let title = "";
+               let subtext = "";
+               let buttonText = "View Details";
+               let targetCourse = null;
+
+               if (notif.type === "course") {
+                 // Course Enrollment notification
+                 title = "New Enrollment";
+                 subtext = notif.desc;
+                 buttonText = "View Course";
+                 targetCourse = db.courses.find(c => String(c.id) === String(notif.assignmentId?.replace('welcome_', '')));
+               } else {
+                 // Standard Assignment notification
+                 const assignment = db.assignments.find(a => String(a.id) === String(notif.assignmentId));
+                 if (!assignment) return null;
+                 title = assignment.title;
+                 targetCourse = db.courses.find(c => String(c.id) === String(assignment.courseId));
+                 subtext = `${targetCourse?.code || ''} · ${targetCourse?.name || ''}`;
+                 buttonText = "View Assignment";
+               }
                
                return (
                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-danger/5 hover:bg-danger/10 p-3 sm:px-4 rounded-xl border border-danger/20 transition-colors">
                    <div className="min-w-0">
-                     <p className="text-sm font-semibold text-danger/90 truncate">{assignment.title}</p>
-                     <p className="text-xs text-danger/70 mt-0.5">{course?.code} · {course?.name}</p>
+                     <p className="text-sm font-semibold text-danger/90 truncate">{title}</p>
+                     <p className="text-xs text-danger/70 mt-0.5">{subtext}</p>
                    </div>
                    <button 
-                     onClick={() => course && onNavigateToCourse(course)}
+                     onClick={() => {
+                       clearNotification(notif.id);
+                       if (targetCourse) onNavigateToCourse(targetCourse);
+                     }}
                      className="text-xs font-bold px-4 py-2 bg-danger/20 text-danger border border-danger/30 hover:bg-danger hover:text-white hover:border-danger hover:shadow-cardHover rounded-lg transition-all whitespace-nowrap self-start sm:self-auto flex items-center gap-1 shrink-0"
                    >
-                     View Assignment
+                     {buttonText}
                    </button>
                  </div>
                );

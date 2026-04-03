@@ -16,27 +16,35 @@ export default function ProfDashboard({
   onNavigateToCourse, onNavigateToDashboard,
   addAssignment, updateAssignment, removeAssignment,
   updateSubmission, sendNotification,
+  addCourse, removeCourse, enrollStudent, unenrollStudent,
+  clearNotification
 }) {
+  const [toastMsg, setToastMsg] = useState({ text: "", type: "success" });
+  
+  const showToast = (text, type = "success") => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg({ text: "", type: "success" }), 3200);
+  };
+
   const students = db.users.filter((u) => u.role === "student");
   const profCourses = db.courses.filter(
     (c) => String(c.profId) === String(currentUser.id)
   );
 
-  // ── Course List View ──────────────────────────────────────────
+  let content = null;
   if (view === "dashboard") {
-    return (
+    content = (
       <ProfCourseDashboard
         profCourses={profCourses}
         db={db}
         students={students}
         onNavigateToCourse={onNavigateToCourse}
+        addCourse={addCourse}
+        showToast={showToast}
       />
     );
-  }
-
-  // ── Course Detail View ────────────────────────────────────────
-  if (view === "course" && selectedCourse) {
-    return (
+  } else if (view === "course" && selectedCourse) {
+    content = (
       <ProfCourseDetail
         course={selectedCourse}
         db={db}
@@ -47,17 +55,50 @@ export default function ProfDashboard({
         removeAssignment={removeAssignment}
         updateSubmission={updateSubmission}
         sendNotification={sendNotification}
+        removeCourse={removeCourse}
+        enrollStudent={enrollStudent}
+        unenrollStudent={unenrollStudent}
+        onNavigateToDashboard={onNavigateToDashboard}
+        toastMsg={toastMsg}
+        showToast={showToast}
       />
     );
   }
 
-  return null;
+  return (
+    <>
+      {content}
+      {/* Toast Notification */}
+      {toastMsg.text && (
+        <div className="fixed bottom-6 right-6 z-[200] animate-slideUp">
+          <div className={`flex items-center gap-3 px-5 py-3 rounded-xl border shadow-2xl glass-panel ${
+            toastMsg.type === "success" ? "border-success/30 text-success" : "border-danger/30 text-danger"
+          }`}>
+            {toastMsg.type === "success" ? <CheckCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+            <span className="text-sm font-bold tracking-tight">{toastMsg.text}</span>
+            <button onClick={() => setToastMsg({...toastMsg, text: ""})} className="ml-2 hover:opacity-70 transition-opacity">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
-// ─────────────────────────────────────────────
 // PROF: Course Dashboard (Screen 1)
 // ─────────────────────────────────────────────
-function ProfCourseDashboard({ profCourses, db, students, onNavigateToCourse }) {
+function ProfCourseDashboard({ profCourses, db, students, onNavigateToCourse, addCourse, showToast }) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [courseData, setCourseData] = useState({ name: "", code: "", description: "", semester: "Spring 2026" });
+
+  const handleCreateCourse = (e) => {
+    e.preventDefault();
+    addCourse(courseData);
+    setIsCreateModalOpen(false);
+    setCourseData({ name: "", code: "", description: "", semester: "Spring 2026" });
+    showToast("Course created successfully!");
+  };
   const totalAssignments = db.assignments.filter((a) =>
     profCourses.some((c) => c.id === a.courseId)
   ).length;
@@ -70,17 +111,82 @@ function ProfCourseDashboard({ profCourses, db, students, onNavigateToCourse }) 
 
   return (
     <main className="animate-fadeIn">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8 animate-slideDown">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
-          Professor Dashboard
-        </h1>
-        <p className="text-textMuted text-sm">
-          Manage your courses and track student progress.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 animate-slideDown">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+            Professor Dashboard
+          </h1>
+          <p className="text-textMuted text-sm">
+            Manage your courses and track student progress.
+          </p>
+        </div>
+        <button 
+          onClick={() => setIsCreateModalOpen(true)}
+          className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center shrink-0"
+        >
+          <Plus className="w-4 h-4" /> Create Course
+        </button>
       </div>
 
-      {/* Stats Row */}
+      {isCreateModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsCreateModalOpen(false)} />
+          <div className="glass-panel w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative z-10 animate-modalIn">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">Create New Course</h3>
+              <button onClick={() => setIsCreateModalOpen(false)} className="icon-btn"><X className="w-5 h-5"/></button>
+            </div>
+            
+            <form onSubmit={handleCreateCourse} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-1.5 ml-1">Course Name</label>
+                <input 
+                  type="text" required
+                  placeholder="e.g. Advanced Graphic Design"
+                  value={courseData.name}
+                  onChange={e => setCourseData({...courseData, name: e.target.value})}
+                  className="input-field py-2.5" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-1.5 ml-1">Code</label>
+                  <input 
+                    type="text" required uppercase
+                    placeholder="e.g. AGD401"
+                    value={courseData.code}
+                    onChange={e => setCourseData({...courseData, code: e.target.value})}
+                    className="input-field py-2.5 uppercase" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-1.5 ml-1">Semester</label>
+                  <input 
+                    type="text" placeholder="Spring 2026"
+                    value={courseData.semester}
+                    onChange={e => setCourseData({...courseData, semester: e.target.value})}
+                    className="input-field py-2.5" 
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-1.5 ml-1">Description</label>
+                <textarea 
+                  required rows={3}
+                  placeholder="A brief overview of the subject..."
+                  value={courseData.description}
+                  onChange={e => setCourseData({...courseData, description: e.target.value})}
+                  className="input-field py-2.5 resize-none" 
+                />
+              </div>
+              <button type="submit" className="btn btn-primary w-full py-3 mt-2 shadow-glow">Create Course</button>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Main Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8 animate-slideDown">
         {[
           { label: "Courses", value: profCourses.length, icon: BookOpen, color: "text-primary bg-primary/10" },
@@ -132,6 +238,8 @@ function ProfCourseDetail({
   course, db, currentUser, students,
   addAssignment, updateAssignment, removeAssignment,
   updateSubmission, sendNotification,
+  removeCourse, enrollStudent, unenrollStudent, onNavigateToDashboard,
+  toastMsg, showToast
 }) {
   const [activeTab, setActiveTab] = useState("assignments");
   const [searchQuery, setSearchQuery] = useState("");
@@ -139,25 +247,21 @@ function ProfCourseDetail({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
+  const [rosterSearch, setRosterSearch] = useState("");
   const [assignmentToDelete, setAssignmentToDelete] = useState(null);
   const [gradingModal, setGradingModal] = useState({ open: false, student: null, assignment: null, submission: null });
   const [reminderModal, setReminderModal] = useState({ open: false, student: null, assignment: null });
   const [gradeData, setGradeData] = useState({ grade: "A", feedback: "" });
-  const [toastMsg, setToastMsg] = useState({ text: "", type: "success" });
+  const [courseToDelete, setCourseToDelete] = useState(false);
   const [formData, setFormData] = useState({
     title: "", description: "", dueDate: "", driveLink: "", submissionType: "individual",
   });
-
   const enrolledStudentIds = db.enrollments
     .filter((e) => e.courseId === course.id)
     .map((e) => Number(e.studentId));
   const enrolledStudents = students.filter((s) => enrolledStudentIds.includes(s.id));
   const courseAssignments = db.assignments.filter((a) => a.courseId === course.id);
-
-  const showToast = (text, type = "success") => {
-    setToastMsg({ text, type });
-    setTimeout(() => setToastMsg({ text: "", type: "success" }), 3200);
-  };
 
   // Filter logic
   const filteredAssignments = courseAssignments.filter((a) => {
@@ -242,30 +346,143 @@ function ProfCourseDetail({
           <h1 className="text-2xl sm:text-3xl font-bold text-white">{course.name}</h1>
           <p className="text-textMuted text-sm mt-1">{enrolledStudents.length} students · {courseAssignments.length} assignments</p>
         </div>
-        <button
-          className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center shrink-0"
-          onClick={openCreateModal}
-        >
-          <Plus className="w-4 h-4" /> New Assignment
-        </button>
+        <div className="flex grow sm:grow-0 items-center gap-2">
+          <button
+            className="icon-btn border-danger/20 text-danger hover:bg-danger/10"
+            onClick={() => setCourseToDelete(true)}
+            title="Delete Course"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
+            className="btn btn-primary flex items-center gap-2 grow sm:grow-0 justify-center shrink-0"
+            onClick={openCreateModal}
+          >
+            <Plus className="w-4 h-4" /> New Assignment
+          </button>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="glass-panel flex p-1 mb-6 rounded-xl w-full sm:w-max gap-1">
-        {["assignments", "students"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
-              activeTab === tab
-                ? "bg-primary text-white shadow-glow"
-                : "text-textMuted hover:text-white"
-            }`}
+      {/* Delete Course Confirmation */}
+      {courseToDelete && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fadeIn" onClick={() => setCourseToDelete(false)} />
+          <div className="glass-panel w-full max-w-sm p-6 rounded-2xl border border-danger/20 shadow-2xl relative z-10 animate-modalIn text-center">
+            <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-danger/20">
+              <AlertTriangle className="w-8 h-8 text-danger" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Delete Course?</h3>
+            <p className="text-textMuted text-sm mb-6">
+              This will permanently remove <span className="text-white font-semibold">{course.name}</span> and all associated assignments and grades.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setCourseToDelete(false)} className="btn bg-white/10 text-white flex-1 hover:bg-white/20">Cancel</button>
+              <button 
+                onClick={() => {
+                  removeCourse(course.id);
+                  onNavigateToDashboard();
+                  showToast("Course deleted successfully");
+                }} 
+                className="btn bg-danger text-white flex-1 hover:bg-danger/80"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="glass-panel flex p-1 rounded-xl w-full sm:w-max gap-1">
+          {["assignments", "students"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
+                activeTab === tab
+                  ? "bg-primary text-white shadow-glow"
+                  : "text-textMuted hover:text-white"
+              }`}
+            >
+              {tab === "assignments" ? "Assignments" : "Student Progress"}
+            </button>
+          ))}
+        </div>
+        
+        {activeTab === "students" && (
+          <button 
+            onClick={() => setIsRosterModalOpen(true)}
+            className="btn bg-white/5 border border-white/10 text-white flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-white/10 transition-all text-sm grow sm:grow-0 justify-center"
           >
-            {tab === "assignments" ? "Assignments" : "Student Progress"}
+            <Users className="w-4 h-4 text-primary" /> Manage Roster
           </button>
-        ))}
+        )}
       </div>
+
+      {/* Manage Roster Modal */}
+      {isRosterModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsRosterModalOpen(false)} />
+          <div className="glass-panel w-full max-w-lg p-6 rounded-2xl border border-white/10 shadow-2xl relative z-10 animate-modalIn flex flex-col max-h-[85vh]">
+            <div className="flex justify-between items-center mb-6 shrink-0">
+              <h3 className="text-xl font-bold text-white">Manage Course Roster</h3>
+              <button onClick={() => setIsRosterModalOpen(false)} className="icon-btn"><X className="w-5 h-5"/></button>
+            </div>
+
+            <div className="relative mb-6 shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-textMuted" />
+              <input 
+                type="text" 
+                placeholder="Search all students..."
+                value={rosterSearch}
+                onChange={e => setRosterSearch(e.target.value)}
+                className="input-field pl-10 py-2.5 text-sm"
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+              <div className="space-y-2">
+                {db.users.filter(u => u.role === "student" && u.name.toLowerCase().includes(rosterSearch.toLowerCase())).map(student => {
+                  const isEnrolled = enrolledStudentIds.includes(student.id);
+                  return (
+                    <div key={student.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary/20 text-primary flex items-center justify-center rounded-full font-bold text-[10px]">
+                          {student.avatar}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">{student.name}</p>
+                          <p className="text-[10px] text-textMuted">{student.email}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          if (isEnrolled) {
+                            unenrollStudent(student.id, course.id);
+                            showToast(`Removed ${student.name} from course`, "warning");
+                          } else {
+                            enrollStudent(student.id, course.id);
+                            showToast(`Enrolled ${student.name} successfully!`, "success");
+                          }
+                        }}
+                        className={`btn px-3 py-1.5 text-[10px] uppercase font-bold tracking-wider rounded-lg ${
+                          isEnrolled 
+                            ? "bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20" 
+                            : "bg-success/10 text-success border border-success/20 hover:bg-success/20"
+                        }`}
+                      >
+                        {isEnrolled ? "Remove" : "Enroll"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── ASSIGNMENTS TAB ──────────────────────────────── */}
       {activeTab === "assignments" && (
@@ -718,18 +935,6 @@ function ProfCourseDetail({
         document.body
       )}
 
-      {/* Toast */}
-      {toastMsg.text && createPortal(
-        <div className={`fixed bottom-5 right-5 left-5 sm:left-auto sm:max-w-sm px-5 py-3 rounded-xl shadow-lg animate-slideUp z-[9999] flex items-center gap-3 border ${
-          toastMsg.type === "warning"
-            ? "bg-warning/20 border-warning/40 text-warning"
-            : "bg-success/20 border-success/40 text-success"
-        }`}>
-          <CheckCircle className="w-5 h-5 shrink-0" />
-          <span className="text-sm font-semibold">{toastMsg.text}</span>
-        </div>,
-        document.body
-      )}
     </main>
   );
 }

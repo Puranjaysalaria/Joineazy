@@ -256,11 +256,18 @@ function App() {
       const defaultEnrollments = db.courses.map(c => ({ studentId: newUser.id, courseId: c.id }));
       newEnrollments = [...newEnrollments, ...defaultEnrollments];
     } else if (newUser.role === "admin") {
+      // Get initials + unique ID suffix for unique codes
+      const initials = name.split(" ").map(n => n[0]).join("").toUpperCase();
+      const uniqueSuffix = String(newUser.id).slice(-3);
+      
       // If a new professor registers, clone the base courses (so they get the subjects)
+      // We append teacher name to title and teacher initials-uniqueID to code to prevent student confusion
       const clonedCourses = db.courses.filter(c => c.profId === 100).map(c => ({
         ...c,
         id: `c_${newUser.id}_${c.id}`,
-        profId: newUser.id
+        profId: newUser.id,
+        name: `${c.name} (Prof. ${name.split(" ")[0]})`,
+        code: `${c.code}-${initials}${uniqueSuffix}`
       }));
       newCourses = [...newCourses, ...clonedCourses];
 
@@ -268,19 +275,39 @@ function App() {
       const clonedAssignments = db.assignments.filter(a => a.createdBy === 100).map(a => ({
         ...a,
         id: Date.now() + Math.floor(Math.random() * 1000),
-        courseId: `c_${newUser.id}_${a.courseId}`,
+        courseId: `c_${newUser.id}_${a.courseId.replace('c','')}`, // simplified mapping
         createdBy: newUser.id
       }));
-      const newAssignments = [...db.assignments, ...clonedAssignments];
       
-      // Automatically enroll all existing students into these fresh, cloned courses
-      const allStudents = db.users.filter(u => u.role === "student");
-      const autoEnrollments = allStudents.flatMap(s => 
-        clonedCourses.map(cc => ({ studentId: s.id, courseId: cc.id }))
+      // Fix IDs for assignments in cloned courses
+      const fixedAssignments = clonedAssignments.map(a => {
+        const originalCourseId = db.assignments.find(org => org.title === a.title)?.courseId;
+        return {
+          ...a,
+          courseId: `c_${newUser.id}_${originalCourseId}`
+        };
+      });
+
+      const newAssignments = [...db.assignments, ...fixedAssignments];
+      
+      // FOR DEMO: Let's enroll just ONE demo student to each course so user doesn't see "0 Students"
+      // But we DON'T enroll existing students to avoid duplicates for them
+      const demoStudents = [
+        { id: Date.now() + 1, name: "Demo Student A", email: `demo_a_${newUser.id}@example.com`, role: "student", avatar: "DA" },
+        { id: Date.now() + 2, name: "Demo Student B", email: `demo_b_${newUser.id}@example.com`, role: "student", avatar: "DB" }
+      ];
+      
+      const demoEnrollments = demoStudents.flatMap(ds => 
+        clonedCourses.map(cc => ({ studentId: ds.id, courseId: cc.id }))
       );
-      newEnrollments = [...newEnrollments, ...autoEnrollments];
       
-      const newDb = { ...db, users: [...db.users, newUser], enrollments: newEnrollments, courses: newCourses, assignments: newAssignments };
+      const newDb = { 
+        ...db, 
+        users: [...db.users, newUser, ...demoStudents], 
+        enrollments: [...newEnrollments, ...demoEnrollments], 
+        courses: newCourses, 
+        assignments: newAssignments 
+      };
       setDb(newDb);
       setCurrentUser(newUser);
       navigate('/professor');
@@ -603,6 +630,124 @@ function App() {
     logActivity("group", "Added to Group", `You were added to ${group?.name || 'a group'} by the leader`, studentId);
   };
 
+  const addCourse = (courseData) => {
+    const colors = ["primary", "success", "warning", "danger"];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    setDb((prev) => ({
+      ...prev,
+      courses: [
+        ...prev.courses,
+        {
+          ...courseData,
+          id: `c_man_${Date.now()}`,
+          profId: currentUser.id,
+          color: randomColor,
+          semester: "Spring 2026"
+        }
+      ]
+    }));
+  };
+
+  const removeCourse = (courseId) => {
+    // Collect IDs of assignments in this course to filter notifications and submissions
+    const courseAssignmentIds = (db.assignments || []).filter(a => String(a.courseId) === String(courseId)).map(a => String(a.id));
+    
+    // Get course info and affected students for logging
+    const course = db.courses.find(c => String(c.id) === String(courseId));
+    const courseName = course?.name || 'the course';
+    const affectedStudentIds = db.enrollments.filter(e => String(e.courseId) === String(courseId)).map(e => e.studentId);
+
+    setDb((prev) => ({
+      ...prev,
+      courses: prev.courses.filter(c => String(c.id) !== String(courseId)),
+      enrollments: prev.enrollments.filter(e => String(e.courseId) !== String(courseId)),
+      assignments: prev.assignments.filter(a => String(a.courseId) !== String(courseId)),
+      submissions: prev.submissions.filter(s => !courseAssignmentIds.includes(String(s.assignmentId))),
+      notifications: (prev.notifications || []).filter(n => {
+        const isWelcomeNotif = n.assignmentId === `welcome_${courseId}`;
+        const isAssignmentNotif = courseAssignmentIds.includes(String(n.assignmentId));
+        return !(isWelcomeNotif || isAssignmentNotif);
+      }),
+      activityLog: [
+        ...affectedStudentIds.map(sid => ({
+          id: Date.now() + Math.random() + sid,
+          userId: sid,
+          type: "course",
+          title: "Course Deleted",
+          desc: `${courseName} has been removed by the professor`,
+          timestamp: new Date().toISOString()
+        })),
+        ...(prev.activityLog || [])
+      ].slice(0, 100)
+    }));
+  };
+
+  const enrollStudent = (studentId, courseId) => {
+    const student = db.users.find(u => u.id === studentId);
+    const course = db.courses.find(c => c.id === courseId);
+    
+    // Add an urgent notification for the student
+    const newNotification = {
+      id: Date.now() + Math.random(),
+      userId: studentId,
+      assignmentId: `welcome_${courseId}`,
+      type: "course",
+      title: "New Course Assigned",
+      desc: `You have been added to ${course?.name || 'a new course'}. Check it out!`,
+      timestamp: new Date().toISOString()
+    };
+
+    setDb((prev) => ({
+      ...prev,
+      enrollments: [...prev.enrollments, { studentId, courseId }],
+      notifications: [newNotification, ...(prev.notifications || [])]
+    }));
+    
+    logActivity("group", "Enrolled in Course", `You were enrolled in ${course?.name || 'a course'} by the professor`, studentId);
+  };
+
+  const unenrollStudent = (studentId, courseId) => {
+    // Collect course info for logging before it's potentially removed or for clarity
+    const course = db.courses.find(c => String(c.id) === String(courseId));
+    const courseName = course?.name || 'the course';
+
+    // Collect IDs of assignments in this course to filter notifications
+    const courseAssignments = (db.assignments || []).filter(a => String(a.courseId) === String(courseId)).map(a => String(a.id));
+    
+    setDb((prev) => ({
+      ...prev,
+      enrollments: prev.enrollments.filter(e => !(e.studentId === studentId && e.courseId === courseId)),
+      notifications: (prev.notifications || []).filter(n => {
+        const isTargetUser = String(n.userId) === String(studentId);
+        if (!isTargetUser) return true;
+        
+        const isWelcomeNotif = n.assignmentId === `welcome_${courseId}`;
+        const isAssignmentNotif = courseAssignments.includes(String(n.assignmentId));
+        
+        return !(isWelcomeNotif || isAssignmentNotif);
+      }),
+      activityLog: [
+        {
+          id: Date.now() + Math.random(),
+          userId: studentId,
+          type: "course",
+          title: "Removed from Course",
+          desc: `You were removed from ${courseName} by the professor`,
+          timestamp: new Date().toISOString()
+        },
+        ...(prev.activityLog || [])
+      ].slice(0, 100)
+    }));
+  };
+
+  const clearNotification = (notificationId) => {
+    setDb((prev) => ({
+      ...prev,
+      notifications: (prev.notifications || []).filter(n => n.id !== notificationId)
+    }));
+  };
+
   // ----------------------------------------------------------------
   // RENDER
   // ----------------------------------------------------------------
@@ -691,6 +836,7 @@ function App() {
               removeGroupMember={removeGroupMember}
               addGroupMember={addGroupMember}
               notifications={db.notifications.filter((n) => String(n.userId) === String(currentUser?.id))}
+              clearNotification={clearNotification}
             />
           )
         } />
@@ -709,6 +855,11 @@ function App() {
               removeAssignment={removeAssignment}
               updateSubmission={updateSubmission}
               sendNotification={sendNotification}
+              addCourse={addCourse}
+              removeCourse={removeCourse}
+              enrollStudent={enrollStudent}
+              unenrollStudent={unenrollStudent}
+              clearNotification={clearNotification}
             />
           )
         } />
