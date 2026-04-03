@@ -6,7 +6,7 @@ import StudentDashboard from "./components/StudentDashboard";
 import { Layers, LogOut, ChevronLeft } from "lucide-react";
 
 // ── Schema version: bump this whenever INITIAL_DB structure changes ──
-const DB_VERSION = "2.1.0";
+const DB_VERSION = "2.4.0";
 
 // ============================================================
 // INITIAL MOCK DATABASE
@@ -163,6 +163,7 @@ const INITIAL_DB = {
   ],
 
   notifications: [],
+  activityLog: [],
 };
 
 // ============================================================
@@ -246,16 +247,44 @@ function App() {
       avatar: name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0,2) || "U"
     };
 
-    // Auto-enroll new students in all active courses so their dashboard isn't empty!
-    let newEnrollments = db.enrollments;
-    let newCourses = db.courses;
+    // Handle intelligent auto-enrollments and course mappings for a realistic demo
+    let newEnrollments = [...db.enrollments];
+    let newCourses = [...db.courses];
 
     if (newUser.role === "student") {
+      // Auto-enroll new students in all active courses so their dashboard isn't empty!
       const defaultEnrollments = db.courses.map(c => ({ studentId: newUser.id, courseId: c.id }));
-      newEnrollments = [...db.enrollments, ...defaultEnrollments];
+      newEnrollments = [...newEnrollments, ...defaultEnrollments];
     } else if (newUser.role === "admin") {
-      // If a new professor registers, map all existing courses to them for the demo!
-      newCourses = db.courses.map(c => ({ ...c, profId: newUser.id }));
+      // If a new professor registers, clone the base courses (so they get the subjects)
+      const clonedCourses = db.courses.filter(c => c.profId === 100).map(c => ({
+        ...c,
+        id: `c_${newUser.id}_${c.id}`,
+        profId: newUser.id
+      }));
+      newCourses = [...newCourses, ...clonedCourses];
+
+      // Clone assignments so the new professor's dashboard is fully populated
+      const clonedAssignments = db.assignments.filter(a => a.createdBy === 100).map(a => ({
+        ...a,
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        courseId: `c_${newUser.id}_${a.courseId}`,
+        createdBy: newUser.id
+      }));
+      const newAssignments = [...db.assignments, ...clonedAssignments];
+      
+      // Automatically enroll all existing students into these fresh, cloned courses
+      const allStudents = db.users.filter(u => u.role === "student");
+      const autoEnrollments = allStudents.flatMap(s => 
+        clonedCourses.map(cc => ({ studentId: s.id, courseId: cc.id }))
+      );
+      newEnrollments = [...newEnrollments, ...autoEnrollments];
+      
+      const newDb = { ...db, users: [...db.users, newUser], enrollments: newEnrollments, courses: newCourses, assignments: newAssignments };
+      setDb(newDb);
+      setCurrentUser(newUser);
+      navigate('/professor');
+      return newUser;
     }
 
     const newDb = { ...db, users: [...db.users, newUser], enrollments: newEnrollments, courses: newCourses };
@@ -329,6 +358,7 @@ function App() {
 
   // Individual acknowledgment
   const addSubmission = (assignmentId) => {
+    const assignment = db.assignments.find(a => String(a.id) === String(assignmentId));
     setDb((prev) => {
       const otherSubmissions = prev.submissions.filter(
         (s) =>
@@ -357,10 +387,12 @@ function App() {
         ),
       };
     });
+    logActivity("submission", `Submitted Assignment`, `You completed ${assignment?.title || "an assignment"}`);
   };
 
   // Group acknowledgment — leader acknowledges → marks all group members
   const addGroupSubmission = (assignmentId, courseId) => {
+    const assignment = db.assignments.find(a => String(a.id) === String(assignmentId));
     setDb((prev) => {
       const group = (prev.groups || []).find(
         (g) =>
@@ -400,6 +432,18 @@ function App() {
           )
       );
 
+      // Log for all members
+      setTimeout(() => {
+        memberIds.forEach(id => {
+          logActivity(
+            "submission", 
+            "Group Submission", 
+            `Your team submitted ${assignment?.title || "an assignment"}`, 
+            id
+          );
+        });
+      }, 0);
+
       return {
         ...prev,
         submissions: [...otherSubmissions, ...groupSubmissions],
@@ -417,6 +461,17 @@ function App() {
           ? { ...s, status: "reviewed", grade, feedback, reviewedAt: new Date().toISOString() }
           : s
       ),
+      activityLog: [
+        {
+          id: Date.now() + Math.random(),
+          userId: studentId,
+          type: "grade",
+          title: `Grade Received`,
+          desc: `You received a ${grade} for an assignment.`,
+          timestamp: new Date().toISOString()
+        },
+        ...(prev.activityLog || [])
+      ]
     }));
   };
 
@@ -437,10 +492,30 @@ function App() {
     }));
   };
 
+  // Activity Logger helper
+  const logActivity = (type, title, desc, targetUserId = null) => {
+    const idToLog = targetUserId || currentUser.id;
+    setDb((prev) => ({
+      ...prev,
+      activityLog: [
+          {
+              id: Date.now() + Math.random(),
+              userId: idToLog,
+              type,
+              title,
+              desc,
+              timestamp: new Date().toISOString()
+          },
+          ...(prev.activityLog || [])
+      ].slice(0, 100) // increase limit for multi-user logs
+    }));
+  };
+
   // Group management
   const createGroup = (courseId, groupName) => {
+    const newGroupId = `g${Date.now()}`;
     const newGroup = {
-      id: `g${Date.now()}`,
+      id: newGroupId,
       courseId,
       name: groupName,
       leaderId: currentUser.id,
@@ -448,9 +523,13 @@ function App() {
       createdAt: new Date().toISOString(),
     };
     updateDb({ groups: [...(db.groups || []), newGroup] });
+    logActivity("group", "Created Group", `You created and joined ${groupName}`);
   };
 
   const joinGroup = (groupId) => {
+    const group = (db.groups || []).find(g => g.id === groupId);
+    if (!group) return;
+    
     updateDb({
       groups: (db.groups || []).map((g) =>
         g.id === groupId && !g.memberIds.includes(currentUser.id)
@@ -458,9 +537,13 @@ function App() {
           : g
       ),
     });
+    logActivity("group", "Joined Group", `You joined ${group.name}`);
   };
 
   const leaveGroup = (groupId) => {
+    const group = (db.groups || []).find(g => g.id === groupId);
+    if (!group) return;
+
     updateDb({
       groups: (db.groups || [])
         .map((g) =>
@@ -470,6 +553,7 @@ function App() {
         )
         .filter((g) => g.memberIds.length > 0), // remove empty groups
     });
+    logActivity("group", "Left Group", `You left ${group.name}`);
   };
 
   const changeGroupLeader = (groupId, newLeaderId) => {

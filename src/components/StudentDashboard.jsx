@@ -954,98 +954,87 @@ function GroupPanel({ course, db, currentUser, myGroup, createGroup, joinGroup, 
 // STUDENT ACTIVITY FEED WIDGET
 // ─────────────────────────────────────────────
 function StudentActivityFeed({ db, currentUser }) {
-  // 1. Gather all events
-  const events = [];
+  // Use the centralized activity log filtered for the current user
+  const userActivities = (db.activityLog || []).filter(
+    (a) => String(a.userId) === String(currentUser.id)
+  );
 
-  // A. Submissions made by the student
-  const studentSubs = (db.submissions || []).filter(s => String(s.studentId) === String(currentUser.id));
-  studentSubs.forEach(sub => {
-    const assignment = (db.assignments || []).find(a => String(a.id) === String(sub.assignmentId));
-    if (assignment) {
-      events.push({
-        id: `sub_${sub.assignmentId}_${sub.timestamp}`,
-        type: "submission",
-        title: `Submitted ${assignment.title}`,
-        desc: "Assignment acknowledged",
-        timestamp: new Date(sub.timestamp),
-        icon: <CheckCircle className="w-4 h-4 text-primary" />,
-        color: "bg-primary/10 border-primary/20 text-primary",
-      });
-      // also if graded
-      if (sub.grade && sub.reviewedAt) {
-        events.push({
-          id: `grade_${sub.assignmentId}_${sub.reviewedAt}`,
-          type: "grade",
-          title: `Grade received: ${assignment.title}`,
-          desc: `Grade: ${sub.grade} - ${sub.feedback || "Great job"}`,
-          timestamp: new Date(sub.reviewedAt),
-          icon: <Star className="w-4 h-4 text-success" />,
-          color: "bg-success/10 border-success/20 text-success",
-        });
-      }
+  // Take top 10 activities
+  const displayedActivities = userActivities.slice(0, 10);
+
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case "submission":
+        return <CheckCircle className="w-4 h-4 text-primary" />;
+      case "grade":
+        return <Star className="w-4 h-4 text-success" />;
+      case "group":
+        return <Users className="w-4 h-4 text-warning" />;
+      default:
+        return <Activity className="w-4 h-4 text-primary" />;
     }
-  });
+  };
 
-  // B. Group Creation / Joining
-  const myGroups = (db.groups || []).filter(g => g.memberIds.includes(currentUser.id) || g.memberIds.includes(String(currentUser.id)));
-  myGroups.forEach(g => {
-    events.push({
-      id: `group_${g.id}_${g.createdAt}`,
-      type: "group",
-      title: `Joined Group`,
-      desc: `You are now part of ${g.name}`,
-      timestamp: new Date(g.createdAt),
-      icon: <Users className="w-4 h-4 text-warning" />,
-      color: "bg-warning/10 border-warning/20 text-warning",
-    });
-  });
-
-  // Sort by latest first
-  events.sort((a, b) => b.timestamp - a.timestamp);
-  
-  // Take top 8
-  const displayedEvents = events.slice(0, 8);
+  const getActivityColor = (type) => {
+    switch (type) {
+      case "submission":
+        return "bg-primary/10 border-primary/20 text-primary";
+      case "grade":
+        return "bg-success/10 border-success/20 text-success";
+      case "group":
+        return "bg-warning/10 border-warning/20 text-warning";
+      default:
+        return "bg-primary/10 border-primary/20 text-primary";
+    }
+  };
 
   return (
-    <div className="glass-panel p-5 rounded-2xl border border-white/5 animate-slideUp h-full">
-      <div className="flex items-center gap-2 mb-6">
+    <div className="glass-panel p-5 rounded-2xl border border-white/5 animate-slideUp h-full flex flex-col">
+      <div className="flex items-center gap-2 mb-6 shrink-0">
         <Activity className="w-5 h-5 text-primary" />
         <h3 className="font-bold text-white text-base">Activity Feed</h3>
       </div>
       
-      {displayedEvents.length === 0 ? (
-        <div className="text-center py-6 text-sm text-textMuted">
-          No recent activity to show.
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {displayedEvents.map((ev, idx) => (
-            <div key={ev.id} className="flex gap-4 relative animate-fadeIn" style={{ animationDelay: `${idx * 0.15}s` }}>
-              {/* Line connector */}
-              {idx !== displayedEvents.length - 1 && (
-                <div className="absolute left-[15px] top-[34px] bottom-[-20px] w-[2px] bg-white/5" />
-              )}
-              
-              <div className={`w-8 h-8 rounded-full flex justify-center items-center shrink-0 border ${ev.color} z-10 bg-surface shadow-lg`}>
-                {ev.icon}
-              </div>
-              
-              <div className="pt-1.5 pb-2 min-w-0">
-                <p className="text-sm font-bold text-white/90 leading-tight mb-1">{ev.title}</p>
-                <div className="flex flex-col gap-1 text-[11px]">
-                   <span className="text-textMuted/90 tracking-wide">{ev.desc}</span>
-                   <span className="text-white/30 font-medium">
-                     {(new Date().getTime() - ev.timestamp.getTime()) < 86400000 
-                       ? ev.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                       : ev.timestamp.toLocaleDateString()
-                     }
-                   </span>
+      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-[300px]">
+        {displayedActivities.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-sm text-textMuted mb-1">No recent activity.</p>
+            <p className="text-[11px] text-textMuted/60 px-4 leading-relaxed">
+              Assignments you submit and group actions will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6 pb-2">
+            {displayedActivities.map((ev, idx) => (
+              <div key={ev.id} className="flex gap-4 relative animate-fadeIn" style={{ animationDelay: `${idx * 0.1}s` }}>
+                {/* Line connector */}
+                {idx !== displayedActivities.length - 1 && (
+                  <div className="absolute left-[15px] top-[34px] bottom-[-24px] w-[2px] bg-white/5" />
+                )}
+                
+                <div className={`w-8 h-8 rounded-full flex justify-center items-center shrink-0 border ${getActivityColor(ev.type)} z-10 bg-surface shadow-lg`}>
+                  {getActivityIcon(ev.type)}
+                </div>
+                
+                <div className="pt-1.5 pb-2 min-w-0 flex-1">
+                  <p className="text-sm font-bold text-white leading-tight mb-1">{ev.title}</p>
+                  <div className="flex flex-col gap-1.5">
+                     <p className="text-[11px] text-textMuted/90 leading-relaxed font-medium">
+                       {ev.desc}
+                     </p>
+                     <span className="text-[10px] text-white/30 font-bold uppercase tracking-wider">
+                       {(new Date().getTime() - new Date(ev.timestamp).getTime()) < 86400000 
+                         ? new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                         : new Date(ev.timestamp).toLocaleDateString()
+                       }
+                     </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
