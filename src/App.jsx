@@ -432,22 +432,22 @@ function App() {
           )
       );
 
-      // Log for all members
-      setTimeout(() => {
-        memberIds.forEach(id => {
-          logActivity(
-            "submission", 
-            "Group Submission", 
-            `Your team submitted ${assignment?.title || "an assignment"}`, 
-            id
-          );
-        });
-      }, 0);
+      // Generate activity logs for all members in one go
+      const now = new Date().toISOString();
+      const newActivities = memberIds.map(id => ({
+        id: Date.now() + Math.random(),
+        userId: id,
+        type: "submission",
+        title: "Group Submission",
+        desc: `Your team submitted ${assignment?.title || "an assignment"}`,
+        timestamp: now
+      }));
 
       return {
         ...prev,
         submissions: [...otherSubmissions, ...groupSubmissions],
         notifications: otherNotifications,
+        activityLog: [...newActivities, ...(prev.activityLog || [])].slice(0, 150)
       };
     });
   };
@@ -557,15 +557,23 @@ function App() {
   };
 
   const changeGroupLeader = (groupId, newLeaderId) => {
+    const group = (db.groups || []).find(g => g.id === groupId);
+    const oldLeaderId = group?.leaderId;
+    const newLeader = db.users.find(u => String(u.id) === String(newLeaderId));
+
     setDb((prev) => ({
       ...prev,
       groups: (prev.groups || []).map((g) =>
         g.id === groupId ? { ...g, leaderId: newLeaderId } : g
       ),
     }));
+
+    if (oldLeaderId) logActivity("group", "Leadership Transferred", `You transferred leadership to ${newLeader?.name || 'another member'}`, oldLeaderId);
+    logActivity("group", "Promoted to Leader", `You are now the leader of ${group?.name || 'the group'}`, newLeaderId);
   };
 
   const removeGroupMember = (groupId, memberIdToRemove) => {
+    const group = (db.groups || []).find(g => g.id === groupId);
     setDb((prev) => ({
       ...prev,
       groups: (prev.groups || []).map((g) => {
@@ -578,9 +586,11 @@ function App() {
         return g;
       }),
     }));
+    logActivity("group", "Removed from Group", `You were removed from ${group?.name || 'the group'}`, memberIdToRemove);
   };
 
   const addGroupMember = (groupId, studentId) => {
+    const group = (db.groups || []).find(g => g.id === groupId);
     setDb((prev) => ({
       ...prev,
       groups: (prev.groups || []).map((g) => {
@@ -590,6 +600,7 @@ function App() {
         return g;
       }),
     }));
+    logActivity("group", "Added to Group", `You were added to ${group?.name || 'a group'} by the leader`, studentId);
   };
 
   // ----------------------------------------------------------------
